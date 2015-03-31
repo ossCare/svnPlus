@@ -1,0 +1,69 @@
+The svnPlus "tagprotect" subverison hook uses 4 files only.
+They are:
+    pre-commit
+    tagprotect.pl
+    tagprotect.cfg
+    version.txt     -- only read in for command line usage
+
+If you all ready have a working "pre-commit" that you want to keep
+it is recommended that just before your script does an "exit 0"
+(since if it already exits non-zero you don't need more checking
+to be done) you simply call this pre-commit program (which of course
+you have to rename to pre-commit-2 or whatever) and pass in the
+same "${1}" and "${2}" your pre-commit script got from subversion.
+The "tagprotect" pre-commit does NOT read standard input for the
+LOCK data, it is unused but it so there will be no conflict on that
+score.
+
+
+DEBUG is purely incremental.
+
+If DEBUG is > 0 the commits will ALWAYS fail.  This is by design
+and the script will tell you if the commit should have been allowed
+or would have failed even if debug was zero.
+
+
+As you incement the DEBUG value you get more printouts plus all the
+printouts at the previous level.
+
+However, when you run the program from the command line it is
+detected (if you given any useful command line options) and debugging
+of the configuration parse drops considerably.
+
+Details about what you get with debug, this is really just for
+developers to keep track of what is doing what debugging.  Of course
+N/A means that particular sub does not do any debug printouts at
+all.
+
+
+0   no debugging
+1+  pre-commit file only will print debug
+    debug of tagprotect.pl starts at 2
+2+  sub AllowCommit
+2+  sub SimplyAllow
+3+  sub AddingSubFolder
+3+  sub TheAddIsAllowed
+3+  sub TheMoveIsAllowed
+3+  sub Authorized
+4+  sub GetSvnAuthor
+4+  sub GetSvnCommit
+5+  sub IsUnderProtectection
+6+  sub ParseCFG   Note: this drops to 1+ if script is running from command line
+6+  sub ParseCLI
+N/A sub ArtifactUnderProtectedFolder - Note: calls IsUnderProtectection which does debug
+N/A sub DebugLevel
+N/A sub FixPath # trim tailing / chars as need be from the config file
+N/A sub FmtStr # create a format string used when generating a config file
+N/A sub GenTupleKey
+N/A sub GetVersion
+N/A sub JustParseCFGFile
+N/A sub LoadCFGTuple #
+N/A sub PrintDefaultConfigAndExit
+N/A sub PrintUsageAndExit # output and exit
+N/A sub PrintVersionAndExit
+N/A sub PrtStr # string '$s' returned formatted when generating a config file
+N/A sub SayImpossible
+N/A sub SayNoDelete
+N/A sub ValidateCFGorDie
+N/A sub ValidateSubFolderOrDie
+N/A sub ZeroOneOrN # return 0, 1, or any N
