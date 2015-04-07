@@ -1,10 +1,14 @@
 #!/usr/bin/perl -w
 ################################################################################
+#  Author:      Joseph C. Pietras - Joseph.Pietras@gmail.com
+#  License:     GNU GENERAL PUBLIC LICENSE Version 2
+#  GitHub:      https://github.com/ossCare/svnPlus.git
+#  SourceForge: TBD
+################################################################################
 # ENTER: INITIALIZE THE PROGRAM
 use warnings;
 use strict;
 use Cwd 'abs_path'; # to be able to get full path to this file
-
 # LEAVE: INITIALIZE THE PROGRAM
 ################################################################################
 
@@ -18,23 +22,21 @@ $NAME =~ s@.*\\@@;           # print "NAME=$NAME\n";
 $NAME =~ s@.*/@@;            # print "NAME=$NAME\n";
 $DIRE =~ s@\\[^\\][^\\]*$@@; # print "DIRE=$DIRE\n";
 $DIRE =~ s@/[^/][^/]*$@@;    # print "DIRE=$DIRE\n";
-
 # LEAVE: find the name of this program and its folder
 ################################################################################
 
 ################################################################################
-# ENTER: CONFIG FILE and REQUIRED SUBROUTINE FILE
-my $CFGF = "$DIRE/tagprotect.cfg";  # the name of the config file itself
-require "$DIRE/tagprotect.pl";   # subroutines, read them in
-
-# ENTER: CONFIG FILE and REQUIRED SUBROUTINE FILE
+# ENTER: CONFIG FILE, PRE-CONFIG FILE and REQUIRED SUBROUTINE FILE
+my $CFGF = "$DIRE/tagprotect.cfg";     # the name of the config file itself
+my $PCFG = "$DIRE/tagprotect.cfg.pl";  # the name of the "pre-compiled" file
+require "$DIRE/tagprotect.pl";         # subroutines, read them in
+# LEAVE: CONFIG FILE, PRE-CONFIG FILE and REQUIRED SUBROUTINE FILE
 ################################################################################
 
 ################################################################################
 # ENTER: PARSE COMMAND LINE AND CONFIGURATION FILE
-my ( %RO_CLI ) = &ParseCLI($NAME, $CFGF);
+my ( %RO_CLI ) = &ParseCLI($NAME, $CFGF, $PCFG);
 my ( %ROconf ) = &ParseCFG($NAME, \%RO_CLI);  # some of $CFGF now in %RO_CLI
-
 # LEAVE: PARSE COMMAND LINE AND CONFIGURATION FILE
 ################################################################################
 
@@ -49,7 +51,6 @@ my $dbglvl     = &DebugLevel(\%RO_CLI);
 #    print $oh '$dbglvl=' . "$dbglvl\n";
 #    close $oh;
 #}
-
 # LEAVE:
 ################################################################################
 
@@ -58,12 +59,11 @@ my $dbglvl     = &DebugLevel(\%RO_CLI);
 #        because next we read the data provided by subversion and if you are
 #        not under subversion this script might hang or generate useless error
 #        messages.
-if ( &JustParseCFGFile(\%RO_CLI) == 1)
+if ( &JustCFGParse(\%RO_CLI) == 1)
 {
     print STDERR "$NAME: exit because just parse command line is in effect\n" if ( $dbglvl > 0 );
     exit 0;
 }
-
 # LEAVE:
 ################################################################################
 
@@ -75,7 +75,6 @@ if ( &JustParseCFGFile(\%RO_CLI) == 1)
 ## my $lockTokens  = do { local $/ = ""; <STDIN> };
 ## $lockTokens //= "";
 ## print STDERR "$NAME: " . ' $lockTokens= ' . '"' . $lockTokens . '"' . "\n" if ( $dbglvl > 4);
-##
 ## # LEAVE: READ "LOCK TOKENS" FROM STDIN -> NOTE: script doesn't use the locks
 ## ################################################################################
 

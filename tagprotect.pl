@@ -1,5 +1,11 @@
 #! /usr/bin/perl -w
-my $VERSION_FILE = 'version.txt';
+################################################################################
+#  Author:      Joseph C. Pietras - Joseph.Pietras@gmail.com
+#  License:     GNU GENERAL PUBLIC LICENSE Version 2
+#  GitHub:      https://github.com/ossCare/svnPlus.git
+#  SourceForge: TBD
+################################################################################
+my $VERSION_FILE = 'tagprotect.version.txt';
 
 # IF YOU RUN WITHOUT A CONFIGUATION FILE all COMMITS ARE ALLOWED ALL
 # TAG PROTECTION IS DISABLED.  IF THIS VARIABLE IS SET TO 0, THEN THE
@@ -37,7 +43,8 @@ use autodie; # automatic die called if file fails to open
 # you must convert to using perl system() calls instead
 use Sysadm::Install qw(tap);
 use Text::Glob qw( match_glob glob_to_regex glob_to_regex_string);
-
+use POSIX qw(strftime);
+#use Time::Format qw(time_format time_strftime time_manip);
 # The following might be easier but ...
 # use SVN::SVNLook; # not there for CentOS6
 # LEAVE: INITIALIZE
@@ -60,35 +67,37 @@ my $VAR_SVNPATH = "SVNPATH";            # variable looked for in config file
 my $DEF_SVNPATH = "/usr/bin/svn";       # default value if not in config
 my     $PATHKEY = 'svnpath';            # CLI key, path to svn program
 
+my     $BCFGKEY = 'buildpl';            # CLI key, output PERL pre-build config from config file
 my     $CLIDKEY = 'cli_dbg';            # CLI key, was debug gotten from command line
 my     $CONFKEY = 'configf';            # CLI key, name of config file, can change when debugging
-my     $JUSTKEY = 'justcfg';            # CLI key, just parse the config and exit
+my     $DUMPKEY = 'dump_pl';            # CLI key, reverse the above, PERL prebuild to config file
+my     $PARSKEY = 'justcfg';            # CLI key, just parse the config and exit
+my     $PREFKEY = 'preconf';            # CLI key, name of precompiled config file, can change when debugging
 my     $RCLIKEY = 'cli_run';            # CLI key, running from command line
-my     $SVNREPO = 'svnRepo';            # CLI key, path to svn repository
 my     $SVNIDEN = 'svn_tID';            # CLI key, subversion transaction key
+my     $SVNREPO = 'svnRepo';            # CLI key, path to svn repository
 
 # CFG
 my $VAR_TAGFOLD = "TAG_FOLDER";         # variable looked for in config file
 my $DEF_TAGFOLD = "/tags";              # default value if not in config
-my     $TAGpKEY = "ProtectParent";      # CFG key, key for this N-Tuple, must be a real path
+my     $TAGpKEY = "$VAR_TAGFOLD";       # CFG key, key for this N-Tuple, must be a real path
 
-# these parts not needed for line no
-# these parts not needed for line no
-# these parts not needed for line no
+# these        (missing 3 lines)
+#       not
+#           needed for line no
 my     $LINEKEY = "ProtectLineNo";      # CFG key, line number in the config file of this tag folder
 
 my $VAR_SUBFOLD = "TAG_SUBFOLDERS";     # variable looked for in config file
 my $DEF_SUBFOLD = "${DEF_TAGFOLD}/*";   # default value if not in config
-my     $SUBfKEY = "SubFold_Names";      # CFG key, subfolders of "ProtectedParent" will be "globbed"
+my     $SUBfKEY = "$VAR_SUBFOLD";       # CFG key, subfolders will be "globbed"
 
 my $VAR_MAKESUB = "TAG_SUBCREATORS";    # variable looked for in config file
 my $DEF_MAKESUB =  "*";                 # default value if not in config
-my     $MAKEKEY = "SubFold_Creat";      # CFG key, those who can create sub folders
+my     $MAKEKEY = "$VAR_MAKESUB";       # CFG key, those who can create sub folders
 
 my $VAR_NAME_AF = "ARCHIVE_FOLDER";     # variable looked for in config file
 my $DEF_NAME_AF =  "Archive";           # default value if not in config
-my     $NAMEKEY = "ArchiveFolder";      # CFG key, directory name of the archive folder
-
+my     $NAMEKEY = "$VAR_NAME_AF";       # CFG key, directory name of the archive folder
 # LEAVE: HARD DEFAULTS FOR CONFIG FILE, VARIABLES SET IN THE CONFIG FILE, etc
 ################################################################################
 
@@ -102,17 +111,18 @@ my $TSTR = "Config_Tuple";  # string part of a N-Tuple key
 ############################# SUPPORT SUBROUTINES ##############################
 ################################################################################
 ###############################################################################{
+
 sub AddingSubFolder
 {
-    my $parent   = shift; # this does NOT end with SLASH
-    my $allsub   = shift; # this does NOT end with SLASH
+    my $parent   = shift; # this does NOT end with SLASH, protected "parent" folder
+    my $allsub   = shift; # this does NOT end with SLASH, subfolders (as a path containing all the "parts" of the path)
     my $artifact = shift; # may or may not end with SLASH - indicates files or folder
     my $dbglvl   = shift; # passed in instead of passing $CLIref
     my $r = 0;            # assume failure
-    my $sstr;             # subfolder string
-    my @suball;
-    my $glob;
-    my $dir = 0;          # assume artifacat is a file
+    my $sstr;             # subfolder string - used for parsing $allsub into the @suball array
+    my @suball;           # hold the parts of $allsub, $allsub can be a glob
+    my $glob;             # build up from the $allsub string split apart into @suball
+    my $dir = 0;          # assume artifact is a file
     local $_;
 
     $_ = $artifact;
@@ -124,6 +134,7 @@ sub AddingSubFolder
         print STDERR "AddingSubFolder: \$sstr=$sstr\n" if ( $dbglvl > 5 );
         $sstr =~ s@^${parent}/@@;   # remove the parent and FIRST SLASH
         @suball = split( '/', $sstr);
+        # walk the longest path to the shortest path
         while ( @suball > 0 )
         {
             $glob = $parent . "/" . join("/", @suball) . "/";
@@ -147,7 +158,33 @@ sub AddingSubFolder
 
     print STDERR "AddingSubFolder: RETURNED $r\t\$artifact=$artifact\n" if ( $dbglvl > 3 );
     return $r;
-}
+} # AddingSubFolder
+
+#### FROM: http://svnbook.red-bean.com/nightly/en/svn.ref.svnlook.c.changed.html
+####
+####   Name
+####
+####    svnlook changed — Print the paths that were changed.
+####
+####   Synopsis
+####
+####    svnlook changed REPOS_PATH
+####
+####   Description
+####
+####    Print the paths that were changed in a particular revision or transaction, as well as “svn update-style” status letters in the first two columns:
+####
+####    'A ' Item added to repository
+####
+####    'D ' Item deleted from repository
+####
+####    'U ' File contents changed
+####
+####    '_U' Properties of item changed; note the leading underscore
+####
+####    'UU' File contents and properties changed
+####
+####    Files and directories can be distinguished, as directory paths are displayed with a trailing “/” character.
 
 sub AllowCommit
 {
@@ -163,7 +200,7 @@ sub AllowCommit
     my $count;            # of array elements
     my $isProt;           # is it protected?
     my $itmp   = -1;      # init to allow for empty CMdata
-    my $ok2add;           # add to array?
+    my $ok2add;           # push to the add array?
     my $ref;              # to Nth array element
     my $stmp;             # tmp string
     my $tupleKey;         # key into configuration HoH
@@ -174,11 +211,12 @@ sub AllowCommit
     while( $itmp < $#$CMdata )
     {
         # get the next array element, $CMdata->[$itmp],
-        # the use a regexp "split" into 3 parts, the middle part is thrown away (it is just 2 spaces)
+        # use a regexp "split" into 3 parts, the middle part is thrown away (it is just 2 spaces)
         # 1st part is 2 chars loaded to $change
         # 2nd part is 2 spaces, ignored
         # 3rd part is the $artifact
         ($change, $artifact) = $CMdata->[$itmp] =~ m@^(..)  (.+)@; # two space chars ignored
+        $change =~ s@\s@@g; # remove spaces
         if ( $CLIref->{$HDBGKEY} > 3 )
         {
             print STDERR "AllowCommit: >>$CMdata->[$itmp]<<\n" if ( $CLIref->{$HDBGKEY} > 4 );
@@ -195,7 +233,7 @@ sub AllowCommit
 
         if ( $isProt == 1 )
         {
-            if ( $change =~ m/^U/ or $change =~ m/^_/ ) # "U   /path", or "_U  /path", or "UU  path"
+            if ( $change eq 'U' or $change eq '_U' or $change eq 'UU'  )
             {
                 print STDERR "$Pname: commit failed, modifications to protected folders or folders is not allowed!\n";
                 print STDERR "$Pname: commit failed on: $CMdata->[$itmp]\n";
@@ -204,19 +242,8 @@ sub AllowCommit
             }
             else
             {
-
-                # this is a safety check, might not be needed when MODIFICATIONS are all done
-                #if ( ! ( $change =~ m/^D/ or $change =~ m/^A/ ) )
-                #{
-                #    print STDERR "$Pname: commit failed, unknown value for \$change=\"$change\"\n";
-                #    print STDERR "$Pname: commit failed on: $CMdata->[$itmp]\n";
-                #    $commit = 0;
-                #    last;
-                #}
-                #else
-                #{
                     $ok2add = 1; # assume so
-                    if ( $change =~ m/^D/ )
+                    if ( $change eq 'D' )
                     {
                         $count = int(@del);
                         if ( $count > 0 )
@@ -229,7 +256,7 @@ sub AllowCommit
                             }
                         }
                     }
-                    else
+                    elsif ( $change eq 'A' ) # hey that is all it can be
                     {
                         $count = int(@add);
                         if ( $count > 0 )
@@ -242,10 +269,18 @@ sub AllowCommit
                             }
                         }
                     }
+                    else
+                    {   # THIS SHOULD NEVER HAPPEN AND IS HERE IN CASE SUBVERSION CHANGES
+                        # this is a safety check - just comment it out to keep on trunking
+                        print STDERR "$Pname: commit failed, unknown value for \$change=\"$change\"\n";
+                        print STDERR "$Pname: commit failed on: $CMdata->[$itmp]\n";
+                        $commit = 0;
+                        last;
+                    }
                     if ( $ok2add )
                     {
                         @tmp = ($tupleKey, $artifact);
-                        if ( $change =~ m/^D/ )
+                        if ( $change eq 'D' )
                         {
                             print STDERR "AllowCommit: $artifact pushed to 'del'\n" if ( $CLIref->{$HDBGKEY} > 2 );
                             push @del, [ @tmp ];
@@ -260,29 +295,27 @@ sub AllowCommit
                     {
                         print STDERR "AllowCommit: $artifact not needed it is a duplicate\n" if ( $CLIref->{$HDBGKEY} > 3 );
                     }
-                #}
             }
         }
         $itmp ++;
     }
     if ( $commit == 1 )
     {
-
-        # Attempting a delete only
+        # See if attempting a delete only
         if    ( int(@add) == 0 && int(@del) != 0 )
         {
             print STDERR "AllowCommit: DELETE ONLY\n" if ( $CLIref->{$HDBGKEY} > 1 );
             $commit = &SayNoDelete($Pname, $CMdata->[$itmp]); # always returns 0
         }
 
-        # Attempting an add only
+        # See if attempting an add only
         elsif ( int(@add) != 0 && int(@del) == 0 )
         {
             print STDERR "AllowCommit: ADD ONLY\n" if ( $CLIref->{$HDBGKEY} > 1 );
             $commit = &TheAddIsAllowed($Pname, $CLIref, $CFGref, $author, \@add); # returns 0 or 1
         }
 
-        # Attempting an add and a delete, only do this if moving a tag to the archive folder
+        # See if attempting an add and a delete, only do this if moving a tag to the archive folder
         elsif ( int(@add) != 0 && int(@del) != 0 )
         {
             print STDERR "AllowCommit: ADD AND DELETE\n" if ( $CLIref->{$HDBGKEY} > 1 );
@@ -297,14 +330,16 @@ sub AllowCommit
         }
     }
     return $commit;
-}
+} # AllowCommit
 
+# each artifact has to be tested to see if it is under protection
+# which means looping through all configurations
 sub ArtifactUnderProtectedFolder
 {
     my $CFGref   = shift;
     my $artifact = shift;
     my $dbglvl   = shift; # passed in instead of passing $CLIref
-    my $parent;  # protected folder
+    my $parent;           # protected folder
     my $tupleKey;
     my $returnKey = "";
     my $isProtected = 0; # assume not protected
@@ -320,7 +355,7 @@ sub ArtifactUnderProtectedFolder
         }
     }
     return ($isProtected, $returnKey);
-}
+} # ArtifactUnderProtectedFolder
 
 sub Authorized
 {
@@ -374,14 +409,14 @@ sub Authorized
         print STDERR "$name: commiter \"$author\" does not have authorization\n";
     }
     return $isauth;
-}
+} # Authorized
 
 sub DebugLevel
 {
     my $CLIref = shift;  # reference to command line arguments hash
     my $level = $CLIref->{$HDBGKEY};
     return $level;
-}
+} # DebugLevel
 
 sub FixPath # trim tailing / chars as need be from the config file
 {
@@ -394,7 +429,7 @@ sub FixPath # trim tailing / chars as need be from the config file
         $_ = "/" if ( $_ eq "" );
     }
     return $_;
-}
+} # FixPath
 
 sub FmtStr # create a format string used when generating a config file
 {
@@ -410,7 +445,7 @@ sub FmtStr # create a format string used when generating a config file
     $l = length($VAR_NAME_AF); $r = $l if ( $l > $r);
     $f = '%-' . $r . "s";
     return $f;
-}
+} # FmtStr
 
 sub GenTupleKey
 {
@@ -419,7 +454,7 @@ sub GenTupleKey
     my $key;
     $key = $keyStr . sprintf("_%03d", $keyCnt); # build the key for the outer hash
     return $key;
-}
+} # GenTupleKey
 
 sub GetSvnAuthor
 {
@@ -459,7 +494,7 @@ sub GetSvnAuthor
     }
     print STDERR "GetSvnAuthor: return \"$svnAuthor\"\n" if ( $CLIref->{$HDBGKEY} > 3 );
     return $svnAuthor;
-}
+} # GetSvnAuthor
 
 sub GetSvnCommit
 {
@@ -515,14 +550,14 @@ sub GetSvnCommit
     }
     print STDERR "GetSvnCommit: LEAVE: list of $what folders and files\n" if ( $CLIref->{$HDBGKEY} > 3 );
     return @Changed; # $svnChanged split into an array of files/folders
-}
+} # GetSvnCommit
 
 sub GetVersion
 {
     my $ver = shift;
     my $back = "";
     local $_;
-    
+
     open my $vHandle, "<", $VERSION_FILE;
     while (<$vHandle>)
     {
@@ -533,81 +568,57 @@ sub GetVersion
     $back  = 'Version ' if ( $ver );
     $back .= $_;
     return $back;
-}
+} # GetVersion
 
 sub IsUnderProtectection
 {
     my $pfolder  = shift; # protected (parent) folder
     my $artifact = shift; # to be added
     my $dbglvl   = shift; # passed in instead of passing $CLIref
-    my $glob;             # globbing pattern to match against
-    my $regx;             # regexp pattern to match against
+    my $leftside;         # left side of $artifact, length of $pfolder
     my $r;                # returned value
     local $_;
 
     if ( $pfolder eq "/" )
     {
-
         # THIS IS CODED THIS WAY IN CASE "/" IS DISALLOWED IN FUTURE (perhaps it should be?)
         $r  = 1;   # this will always match everything!
         print STDERR "IsUnderProtection: protected folder is \"/\" it always matches everyting\n" if ( $dbglvl > 5 );
     }
     else
     {
-
-        # usually the protected (parent) folder is given literally like: "/tags"
-        # but it can be given as a glob, i.e.: "/tags/project_0[1-9]"
-        # which means that all folders named like the above are procted
-
-        # 1) try a globbing match - because the protected parent could have
-        #    been given as such AND IT MUST BE TESTED FIRST OR THE REGEXP
-        #    MATCH CAN GIVE ERRORS.  Furthermore, if the globbing match
-        #    fails and then the protected (parent) folder is used as a
-        #    regexp, it _might_ still give an error.
-        # 2) look for a regular experession match which is most often the case
-        #    when the protected (parent) folder is literal
-        # NOTE: the variable "$glob" is used for both anyway
-
-        # if the protected (parent) folder was given configured as a "glob" this will catch it
-        $glob = $pfolder;
-        print STDERR "IsUnderProtection: checking globbing match_glob($glob, $artifact)\t" if ( $dbglvl > 5 );
-        if ( match_glob( $glob, $artifact ) )
+        # the protected (parent) folder is given literally like: "/tags"
+        # but can contain who knows what (even meta chars to be taken as is) 
+        $_ = int(length($pfolder));
+        $leftside = substr($artifact, 0, $_);
+        if ( $dbglvl > 5 )
+        {
+            print STDERR 'IsUnderProtection: $artifact:  ' . $artifact . ")\n" if ( $dbglvl > 6 );
+            print STDERR 'IsUnderProtection: checking regexp match (' . $leftside . ' eq ' . $pfolder . ")\t";
+        }
+        if ( $leftside eq $pfolder )
         {
             print STDERR "MATCH\n" if ( $dbglvl > 5 );
             $r = 1;
         }
         else
         {
-
-            # if the protected (parent) folder was given configured as a "glob" this will catch it
             print STDERR "miss\n" if ( $dbglvl > 5 );
-            $regx = quotemeta( $pfolder );
-            print STDERR "IsUnderProtection: checking regexp match ($artifact =~ $regx)\t" if ( $dbglvl > 5 );
-            if ( $artifact =~ m@$regx@ )
-            {
-                print STDERR "MATCH\n" if ( $dbglvl > 5 );
-                $r = 1;
-            }
-            else
-            {
-                print STDERR "miss\n" if ( $dbglvl > 5 );
-                $r = 0;
-            }
+            $r = 0;
         }
     }
     print STDERR "IsUnderProtection: RETURNED $r\n" if ( $dbglvl > 4 );
     return $r;
-}
+} # IsUnderProtectection
 
-sub JustParseCFGFile
+sub JustCFGParse
 {
     my $CLIref = shift;  # reference to command line arguments hash
-    my $justParse = $CLIref->{$JUSTKEY};
+    my $justParse = $CLIref->{$PARSKEY};
     return $justParse;
-}
+} # JustCFGParse
 
-# ENTER: put an N-Tuple into the Hash of hashes
-sub LoadCFGTuple #
+sub LoadCFGTuple # put an N-Tuple into the Hash of hashes
 {
     my $progName    = shift;
     my $cfg_File    = shift;
@@ -679,16 +690,13 @@ sub LoadCFGTuple #
 
     $keyCnt++;
     return $keyCnt; # return one more than input
-}
+} # put an N-Tuple into the Hash of hashes
 
-# LEAVE: put an N-Tuple into the Hash of hashes
-################################################################################
-################################################################################
-# ENTER: parse config file
-sub ParseCFG
+sub ParseCFG # ENTER: parse config file
 {
     my $Pname   = shift;   # name of calling program
-    my $CLIref  = shift;   # reference to command line arguments hash
+    # this _must_ be "our" (not "my") because of reading from pre-compiled file
+    our $CLIref = shift;   # reference to command line arguments hash
     my $var     = "";
     my $val     = "";
     my $ch_1st  = "";
@@ -697,303 +705,401 @@ sub ParseCFG
     my $unknown =  0;
     my $itmp    =  0;
     my %cfg     = ();     # "one config" for a protected folder
-    my %HoH     = ();     # hash of hashes - holds all configs
+    # this _must_ be "our" (not "my") because of reading from pre-compiled file
+    our %HoH    = ();     # hash of hashes - holds all configs
     my $cfgh;             # open config handle
+    my $tKey;             # N-Tuple key
+    my $cKey;             # configuration key
+    my $spch;             # string of space characters
+    my $readPreComp = 0;  # read the precompiled config file
 
-    my $dbgInc = 5;       # default to high so this function does not output
-    $dbgInc = 0 if ( $CLIref->{$JUSTKEY} || $CLIref->{$RCLIKEY} );
+    my $dbgInc = 5;       # set the default high so this function does not output unless in command line mode
+    $dbgInc = 0 if ( $CLIref->{$RCLIKEY} || $CLIref->{$PARSKEY} || $CLIref->{$BCFGKEY} || $CLIref->{$DUMPKEY} );
 
-    if ( ! -f $CLIref->{$CONFKEY} )
+    if ( $CLIref->{$BCFGKEY} == 0 )
     {
-        print STDERR "ParseCFG: No configuration file \"$CLIref->{$CONFKEY}\"\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) );
-        if ( ! $ALLOW_NO_CONFIG_FILE )
-        {
-            print STDERR "ParseCFG: $TAGpKEY = $cfg{$TAGpKEY}    NO CONFIG FILE, LOADING DEFAULT\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) ) ;
-            $cfg{$LINEKEY} = 0; # keep the line this was read in on
-            $cfg{$TAGpKEY} = $DEF_TAGFOLD;
-            $cfg{$SUBfKEY} = $DEF_SUBFOLD;
-            $cfg{$MAKEKEY} = $DEF_MAKESUB;
-            $cfg{$NAMEKEY} = $DEF_NAME_AF;
-            $TCNT = &LoadCFGTuple($Pname, $CLIref->{$CONFKEY},
-                \%cfg, $TAGpKEY, $LINEKEY, $SUBfKEY, $MAKEKEY, $NAMEKEY,
-                \%HoH, $TSTR, $TCNT);
-        }
-        elsif ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) )
-        {
-            print STDERR "ParseCFG: NO CONFIG FILE -- ALL COMMITS ALLOWED\n";
-        }
+        $readPreComp = 1 if ( -f $CLIref->{$PREFKEY} );
     }
-    else
+
+    if ( $readPreComp ) # if precompiled file, and not command line options to the contrary, just require it and done!
     {
-        print STDERR "ParseCFG: open $CLIref->{$CONFKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
-        open $cfgh, "<", $CLIref->{$CONFKEY};
-        while (<$cfgh>)
+        print STDERR "ParseCFG: read precompiled configuration file \"$CLIref->{$PREFKEY}\"\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) );
+        require "$CLIref->{$PREFKEY}";
+    }
+    else # read the regular config file
+    {
+        if ( ! -f $CLIref->{$CONFKEY} )
         {
-            ###############################################
-            # ENTER: fix and split up the line just read in
-            chop;
-            s/#.*//;  # remove comments
-            s/\s*$//; # remove trailing white space
-            next if $_ eq "";
-            print STDERR "ParseCFG: RAW: $_\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 4) );
-
-            if ( ! m/=/ )
+            print STDERR "ParseCFG: No configuration file \"$CLIref->{$CONFKEY}\"\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) );
+            if ( ! $ALLOW_NO_CONFIG_FILE )
             {
-                print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
-                print STDERR "$Pname: line $. >>$_<< is not a comment and does not contain an equal sign(=) character!\n";
-                $errors ++;
-                next;
+                print STDERR "ParseCFG: $TAGpKEY = $cfg{$TAGpKEY}    NO CONFIG FILE, LOADING DEFAULT\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) ) ;
+                $cfg{$LINEKEY} = 0; # keep the line this was read in on
+                $cfg{$TAGpKEY} = $DEF_TAGFOLD;
+                $cfg{$SUBfKEY} = $DEF_SUBFOLD;
+                $cfg{$MAKEKEY} = $DEF_MAKESUB;
+                $cfg{$NAMEKEY} = $DEF_NAME_AF;
+                $TCNT = &LoadCFGTuple($Pname, $CLIref->{$CONFKEY},
+                    \%cfg, $TAGpKEY, $LINEKEY, $SUBfKEY, $MAKEKEY, $NAMEKEY,
+                    \%HoH, $TSTR, $TCNT);
             }
-            $var =  $_;                 # init to input
-            $var =~ s/^\s*//;           # remove initial white space
-            $var =~ s/\s*=.*//;         # remove optional white space and equal sign
-            $val =  $_;                 # init to input
-            $val =~ s/\s*$var\s*=\s*//; # remove VAR= with optional white space
-            $val =~ s/\s*;\s*//;        # remove trailing ';' and white space, if any
-            $ch_1st = $val; $ch_1st =~ s/^(.)(.*)(.)\Z/$1/; # first char
-            $chLast = $val; $chLast =~ s/^(.)(.*)(.)\Z/$3/; # last char
-            if ( $CLIref->{$HDBGKEY} > ($dbgInc + 4) )
+            elsif ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) )
             {
-                print STDERR "ParseCFG: \$var=\"$var\"\n";
-                print STDERR "ParseCFG: \$val=\"$val\"\n";
-                print STDERR "ParseCFG: \$ch_1st=\"$ch_1st\"\n";
-                print STDERR "ParseCFG: \$chLast=\"$chLast\"\n";
+                print STDERR "ParseCFG: NO CONFIG FILE -- ALL COMMITS ALLOWED\n";
             }
-            if    ( $ch_1st eq $chLast and $ch_1st eq '"' )
-            {   # extact dq string
-                $val =~ s/^(.)(.*)(.)\Z/$2/;
-            }
-            elsif ( $ch_1st eq $chLast and $ch_1st eq "'" )
-            {   # extact sq string
-                $val =~ s/^(.)(.*)(.)\Z/$2/;
-            }
-            elsif ($ch_1st eq '"' or $ch_1st eq "'" )
+        }
+        else
+        {
+            print STDERR "ParseCFG: read open $CLIref->{$CONFKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
+            open $cfgh, "<", $CLIref->{$CONFKEY};
+            while (<$cfgh>)
             {
-                print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
-                print STDERR "$Pname: line $. >>$_<< badly quoted!\n";
-                $errors ++;
-                next;
-            }
-
-            #else                                  { $val is good as it is }
-
-            if ( $CLIref->{$HDBGKEY} > ($dbgInc + 3) )
-            {
-                print STDERR 'ParseCFG: $var="' . "$var" . '"' . "\n";
-                print STDERR 'ParseCFG: $val="' . "$val" . '"' . "\n";
-            }
-
-            # ENTER: fix and split up the line just read in
-            ###############################################
-
-            ############################################################
-            # ENTER: find the variable and store the value for "GLOBALS"
-            if    ( $var =~ m/^${VAR_H_DEBUG}\Z/i       )
-            {
-                if ( $CLIref->{$CLIDKEY} == 0 )
-                {
-                    $itmp = &ZeroOneOrN($val);
-                    $CLIref->{$HDBGKEY} = $itmp if ( $itmp > $CLIref->{$HDBGKEY} );
-                }
-            }
-            elsif ( $var =~ m/^${VAR_SVNPATH}\Z/i       )
-            {
-                $ch_1st = $val; $ch_1st =~ s/(.)(.+)/$1/; # first char
-                if ( $ch_1st ne "/" )
+                ###############################################
+                # ENTER: fix and split up the line just read in
+                chop;
+                s/#.*//;  # remove comments
+                s/\s*$//; # remove trailing white space
+                next if $_ eq "";
+                print STDERR "ParseCFG: RAW: $_\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 4) );
+    
+                if ( ! m/=/ )
                 {
                     print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
-                    print STDERR "$Pname: line $. >>$_<< svn path does not start with slash(/)!\n";
+                    print STDERR "$Pname: line $. >>$_<< is not a comment and does not contain an equal sign(=) character!\n";
                     $errors ++;
                     next;
                 }
-                $CLIref->{$PATHKEY}=$val;
-            }
-            elsif ( $var =~ m/^${VAR_SVNLOOK}\Z/i       )
-            {
-                $ch_1st = $val; $ch_1st =~ s/(.)(.+)/$1/; # first char
-                if ( $ch_1st ne "/" )
+                $var =  $_;                 # init to input
+                $var =~ s/^\s*//;           # remove initial white space
+                $var =~ s/\s*=.*//;         # remove optional white space and equal sign
+                $val =  $_;                 # init to input
+                $val =~ s/\s*$var\s*=\s*//; # remove VAR= with optional white space
+                $val =~ s/\s*;\s*//;        # remove trailing ';' and white space, if any
+                $ch_1st = $val; $ch_1st =~ s/^(.)(.*)(.)\Z/$1/; # first char
+                $chLast = $val; $chLast =~ s/^(.)(.*)(.)\Z/$3/; # last char
+                if ( $CLIref->{$HDBGKEY} > ($dbgInc + 4) )
+                {
+                    print STDERR "ParseCFG: \$var=\"$var\"\n";
+                    print STDERR "ParseCFG: \$val=\"$val\"\n";
+                    print STDERR "ParseCFG: \$ch_1st=\"$ch_1st\"\n";
+                    print STDERR "ParseCFG: \$chLast=\"$chLast\"\n";
+                }
+                if    ( $ch_1st eq $chLast and $ch_1st eq '"' )
+                {   # extact dq string
+                    $val =~ s/^(.)(.*)(.)\Z/$2/;
+                }
+                elsif ( $ch_1st eq $chLast and $ch_1st eq "'" )
+                {   # extact sq string
+                    $val =~ s/^(.)(.*)(.)\Z/$2/;
+                }
+                elsif ($ch_1st eq '"' or $ch_1st eq "'" )
                 {
                     print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
-                    print STDERR "$Pname: line $. >>$_<< svnlook path does not start with slash(/)!\n";
+                    print STDERR "$Pname: line $. >>$_<< badly quoted!\n";
                     $errors ++;
                     next;
                 }
-                $CLIref->{$LOOKKEY}=$val;
-            }
-
-            # LEAVE: find the variable and store the value for "GLOBALS"
-            ############################################################
-
-            ###########################################################
-            # ENTER: find the variable and store the value for "N-Tuple"
-            # can be given in _any_ order
-            # 1) tag folder - cannot be BLANK
-            # 2) subfolder - can be BLANK means NOT ALLOWED
-            # 3) subfolder creators - can be BLANK means NO ONE
-            # 4) archive name - can be BLANK means NOT ALLOWED
-
-            # 1)
-            elsif ( $var =~ m/^${VAR_TAGFOLD}\Z/i )
-            {
-
-                # before processing this "$var" (a "protected tag folder" from the config file)
-                # if there is a "protected tag folder" outstanding, load it and its corresponding
-                # configuration values
-                if ( keys %cfg )
+    
+                #else                                  { $val is good as it is }
+    
+                if ( $CLIref->{$HDBGKEY} > ($dbgInc + 3) )
                 {
+                    print STDERR 'ParseCFG: $var="' . "$var" . '"' . "\n";
+                    print STDERR 'ParseCFG: $val="' . "$val" . '"' . "\n";
+                }
+    
+                # ENTER: fix and split up the line just read in
+                ###############################################
+    
+                ############################################################
+                # ENTER: find the variable and store the value for "GLOBALS"
+                if    ( $var =~ m/^${VAR_H_DEBUG}\Z/i       )
+                {
+                    if ( $CLIref->{$CLIDKEY} == 0 )
+                    {
+                        $itmp = &ZeroOneOrN($val);
+                        $CLIref->{$HDBGKEY} = $itmp if ( $itmp > $CLIref->{$HDBGKEY} );
+                    }
+                }
+                elsif ( $var =~ m/^${VAR_SVNPATH}\Z/i       )
+                {
+                    $ch_1st = $val; $ch_1st =~ s/(.)(.+)/$1/; # first char
+                    if ( $ch_1st ne "/" )
+                    {
+                        print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
+                        print STDERR "$Pname: line $. >>$_<< svn path does not start with slash(/)!\n";
+                        $errors ++;
+                        next;
+                    }
+                    $CLIref->{$PATHKEY}=$val;
+                    print STDERR 'ParseCFG: $CLIref->{' . "$PATHKEY" . '} = "' . $CLIref->{$PATHKEY} . '"' . "\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) );
+                }
+                elsif ( $var =~ m/^${VAR_SVNLOOK}\Z/i       )
+                {
+                    $ch_1st = $val; $ch_1st =~ s/(.)(.+)/$1/; # first char
+                    if ( $ch_1st ne "/" )
+                    {
+                        print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
+                        print STDERR "$Pname: line $. >>$_<< svnlook path does not start with slash(/)!\n";
+                        $errors ++;
+                        next;
+                    }
+                    $CLIref->{$LOOKKEY}=$val;
+                    print STDERR 'ParseCFG: $CLIref->{' . "$LOOKKEY" . '} = "' . $CLIref->{$LOOKKEY} . '"' . "\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) );
+                }
+    
+                # LEAVE: find the variable and store the value for "GLOBALS"
+                ############################################################
+    
+                ###########################################################
+                # ENTER: find the variable and store the value for "N-Tuple"
+                # can be given in _any_ order
+                # 1) tag folder - cannot be BLANK
+                # 2) subfolder - can be BLANK means NOT ALLOWED
+                # 3) subfolder creators - can be BLANK means NO ONE
+                # 4) archive name - can be BLANK means NOT ALLOWED
+    
+                # 1)
+                elsif ( $var =~ m/^${VAR_TAGFOLD}\Z/i )
+                {
+    
+                    # before processing this "$var" (a "protected tag folder" from the config file)
+                    # if there is a "protected tag folder" outstanding, load it and its corresponding
+                    # configuration values
+                    if ( keys %cfg )
+                    {
+                        $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
+    
+                        # we need to load this protected folder and all the
+                        # members of the "tuple" into the configuration hash
+                        print STDERR "ParseCFG: $TAGpKEY = $cfg{$TAGpKEY}    in the while loop\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
+                        $TCNT = &LoadCFGTuple($Pname, $CLIref->{$CONFKEY},
+                            \%cfg, $TAGpKEY, $LINEKEY, $SUBfKEY, $MAKEKEY, $NAMEKEY,
+                            \%HoH, $TSTR, $TCNT);
+                        %cfg = (); # clear it to hold next parse
+                    }
+    
+                    # now process the just read in "protected tag folder"
+                    $ch_1st = $val; $ch_1st =~ s/(.)(.+)/$1/; # first char
+                    if ( $ch_1st ne "/" )
+                    {
+                        print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
+                        print STDERR "$Pname: line $. >>$_<< tag folder to protect does not start with slash(/)!\n";
+                        $errors ++;
+                        next;
+                    }
+                    $cfg{$TAGpKEY} = &FixPath($val);
+                    $cfg{$LINEKEY} = $.; # keep the line this was read in on
+                    # safety/security check
+                    if ( $cfg{$TAGpKEY}    eq ""  )
+                    {
+                        print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
+                        print STDERR "$Pname: line $. >>$_<<";
+                        print STDERR " (which becomes \"$cfg{$TAGpKEY}\")" if ( $_ ne $cfg{$TAGpKEY} );
+                        print STDERR " cannot be blank!\n";
+                        $errors ++;
+                        next;
+                    }
+                }
+    
+                # 2)
+                elsif ( $var =~ m/^${VAR_SUBFOLD}\Z/i   )
+                {
+                    $val = &FixPath($val); # can end up being BLANK, that's ok
+                    # if $val is BLANK it means the next tags folder to be protected
+                    # will have NO subfolders
+                    $cfg{$SUBfKEY} = $val;
+                    if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) )
+                    {
+                        if ( $val eq "" )
+                        {
+                            print STDERR "ParseCFG: $SUBfKEY = has been cleared, configuation to have no subfolders.\n";
+                        }
+                        else
+                        {
+                            print STDERR "ParseCFG: $SUBfKEY = $cfg{$SUBfKEY}\n";
+                        }
+                    }
                     $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
-
-                    # we need to load this protected folder and all the
-                    # members of the "tuple" into the configuration hash
-                    print STDERR "ParseCFG: $TAGpKEY = $cfg{$TAGpKEY}    in the while loop\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
-                    $TCNT = &LoadCFGTuple($Pname, $CLIref->{$CONFKEY},
-                        \%cfg, $TAGpKEY, $LINEKEY, $SUBfKEY, $MAKEKEY, $NAMEKEY,
-                        \%HoH, $TSTR, $TCNT);
-                    %cfg = (); # clear it to hold next parse
                 }
-
-                # now process the just read in "protected tag folder"
-                $ch_1st = $val; $ch_1st =~ s/(.)(.+)/$1/; # first char
-                if ( $ch_1st ne "/" )
+    
+                # 3)
+                elsif ( $var =~ m/^${VAR_MAKESUB}\Z/i       )
                 {
-                    print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
-                    print STDERR "$Pname: line $. >>$_<< tag folder to protect does not start with slash(/)!\n";
-                    $errors ++;
-                    next;
+                    $cfg{$MAKEKEY} = "$val"; # can be BLANK
+                    print STDERR "ParseCFG: $MAKEKEY = $cfg{$MAKEKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) );
+                    $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
                 }
-                $cfg{$TAGpKEY} = &FixPath($val);
-                $cfg{$LINEKEY} = $.; # keep the line this was read in on
-                # safety/security check
-                if ( $cfg{$TAGpKEY}    eq ""  )
+    
+                # 4)
+                elsif ( $var =~ m/^${VAR_NAME_AF}\Z/i       )
                 {
-                    print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
-                    print STDERR "$Pname: line $. >>$_<<";
-                    print STDERR " (which becomes \"$cfg{$TAGpKEY}\")" if ( $_ ne $cfg{$TAGpKEY} );
-                    print STDERR " cannot be blank!\n";
-                    $errors ++;
-                    next;
-                }
-            }
-
-            # 2)
-            elsif ( $var =~ m/^${VAR_SUBFOLD}\Z/i   )
-            {
-                $val = &FixPath($val); # can end up being BLANK, that's ok
-                # if $val is BLANK it means the next tags folder to be protected
-                # will have NO subfolders
-                $cfg{$SUBfKEY} = $val;
-                if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) )
-                {
-                    if ( $val eq "" )
+                    $val = &FixPath($val); # can end up being BLANK, that's ok
+                    $val = $DEF_NAME_AF if  ( $val eq ""    ); # asked for a reset
+                    $val = &FixPath($val); # won't be BLANK any longer
+                    if ( $val =~ m@/@ )
                     {
-                        print STDERR "ParseCFG: $SUBfKEY = has been cleared, configuation to have no subfolders.\n";
+                        print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
+                        print STDERR "$Pname: line $. >>$_<< archive folder name contains a slash(/) character, that is not allowed!\n";
+                        $errors ++;
+                        next;
                     }
-                    else
-                    {
-                        print STDERR "ParseCFG: $SUBfKEY = $cfg{$SUBfKEY}\n";
-                    }
+                    $cfg{$NAMEKEY} = $val;
+                    print STDERR "ParseCFG: $NAMEKEY = $cfg{$NAMEKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) );
+                    $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
                 }
-                $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
-            }
-
-            # 3)
-            elsif ( $var =~ m/^${VAR_MAKESUB}\Z/i       )
-            {
-                $cfg{$MAKEKEY} = "$val"; # can be BLANK
-                print STDERR "ParseCFG: $MAKEKEY = $cfg{$MAKEKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) );
-                $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
-            }
-
-            # 4)
-            elsif ( $var =~ m/^${VAR_NAME_AF}\Z/i       )
-            {
-                $val = &FixPath($val); # can end up being BLANK, that's ok
-                $val = $DEF_NAME_AF if  ( $val eq ""    ); # asked for a reset
-                $val = &FixPath($val); # won't be BLANK any longer
-                if ( $val =~ m@/@ )
+    
+                # the "variable = value" pair is unrecognized
+                else
                 {
-                    print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
-                    print STDERR "$Pname: line $. >>$_<< archive folder name contains a slash(/) character, that is not allowed!\n";
-                    $errors ++;
-                    next;
-                }
-                $cfg{$NAMEKEY} = $val;
-                print STDERR "ParseCFG: $NAMEKEY = $cfg{$NAMEKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) );
-                $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
-            }
-
-            # the "variable = value" pair is unrecognized
-            else
-            {
-
-                # useless to output error message unless debug is enabled, or
-                # we are running from the command line, because otherwise
-                # subversion will just throw them away!
-                if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) || $CLIref->{$RCLIKEY} > 0 )
-                {
-                    if ( $unknown == 0 )
+    
+                    # useless to output error message unless debug is enabled, or
+                    # we are running from the command line, because otherwise
+                    # subversion will just throw them away!
+                    if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) || $CLIref->{$RCLIKEY} > 0 )
                     {
-                        print STDERR "$Pname: useless configuration variables found while parsing\n";
-                        print STDERR "$Pname: configuration file: \"$CLIref->{$CONFKEY}\"\n";
-                        print STDERR "$Pname: tell the subversion administrator.\n";
+                        if ( $unknown == 0 )
+                        {
+                            print STDERR "$Pname: useless configuration variables found while parsing\n";
+                            print STDERR "$Pname: configuration file: \"$CLIref->{$CONFKEY}\"\n";
+                            print STDERR "$Pname: tell the subversion administrator.\n";
+                        }
+                        print STDERR "$Pname: unrecognized \"variable = value\" on line $.\n";
+                        print STDERR "$Pname: variable: \"$var\"\n";
+                        print STDERR "$Pname: value:    \"$val\"\n";
+                        print STDERR "$Pname: line:     >>$_<<\n";
+                        $unknown ++;
                     }
-                    print STDERR "$Pname: unrecognized \"variable = value\" on line $.\n";
-                    print STDERR "$Pname: variable: \"$var\"\n";
-                    print STDERR "$Pname: value:    \"$val\"\n";
-                    print STDERR "$Pname: line:     >>$_<<\n";
-                    $unknown ++;
                 }
+    
+                # LEAVE: find the variable and store the value for "N-Tuple"
+                # can be given in _any_ order
+                # 1) tag folder - cannot be BLANK
+                # 2) subfolder - can be BLANK means NOT ALLOWED
+                # 3) subfolder creators - can be BLANK means NO ONE
+                # 4) archive name - can be BLANK means NOT ALLOWED
+                ############################################################
             }
-
-            # LEAVE: find the variable and store the value for "N-Tuple"
-            # can be given in _any_ order
-            # 1) tag folder - cannot be BLANK
-            # 2) subfolder - can be BLANK means NOT ALLOWED
-            # 3) subfolder creators - can be BLANK means NO ONE
-            # 4) archive name - can be BLANK means NOT ALLOWED
-            ############################################################
+            if ( $errors > 0 ) { exit $exitFatalErr; }
+    
+            # there can be one left in the "cache"
+            if ( keys %cfg )
+            {
+                print STDERR "ParseCFG: $TAGpKEY = $cfg{$TAGpKEY}    AT END OF WHILE LOOP\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
+                $TCNT = &LoadCFGTuple($Pname, $CLIref->{$CONFKEY},
+                    \%cfg, $TAGpKEY, $LINEKEY, $SUBfKEY, $MAKEKEY, $NAMEKEY,
+                    \%HoH, $TSTR, $TCNT);
+            }
+            close $cfgh;
         }
-        if ( $errors > 0 ) { exit $exitFatalErr; }
-
-        # there can be one left in the "cache"
-        if ( keys %cfg )
-        {
-            print STDERR "ParseCFG: $TAGpKEY = $cfg{$TAGpKEY}    AT END OF WHILE LOOP\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
-            $TCNT = &LoadCFGTuple($Pname, $CLIref->{$CONFKEY},
-                \%cfg, $TAGpKEY, $LINEKEY, $SUBfKEY, $MAKEKEY, $NAMEKEY,
-                \%HoH, $TSTR, $TCNT);
-        }
-        close $cfgh;
+        &ValidateCFGorDie($Pname, $CLIref->{$CONFKEY}, $TSTR, $TCNT, \%HoH, $TAGpKEY, $LINEKEY);
     }
-    &ValidateCFGorDie($Pname, $CLIref->{$CONFKEY}, $TSTR, $TCNT, \%HoH, $TAGpKEY, $LINEKEY);
-
-    if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) )
+    # DUMP (revert) THE PRECOMPILED FILE BACK TO A REGULAR CONFIGURATION FILE
+    if ( $CLIref->{$DUMPKEY} > 0 )
     {
-        my $tKey;
+        if ( $readPreComp == 0 )
+        {
+            print STDERR "$Pname: precompiled configuration file is:\n";
+            print STDERR "$Pname:     \"$CLIref->{$PREFKEY}\"\n";
+            print STDERR "$Pname: precompiled configuration file was not read in.  Unable to\n";
+            print STDERR "$Pname: revert the precompiled configuration file to a (regular) configuration file.\n";
+            if ( ! -f "$CLIref->{$PREFKEY}" )
+            {
+                print STDERR "$Pname: it does not exist.\n";
+            }
+            print STDERR "$Pname: ABORTING!\n";
+            exit 1;
+        }
+        &PrintDefaultConfigAndExit(1);
+        $_ = 0;
+        for $tKey ( sort keys %HoH )
+        {
+            my $q = "'";
+            print STDOUT "\n\n" if ( $_ > 0 );
+            $_ = 1;
+            %cfg = %{ $HoH{$tKey} };
+            print STDOUT &PrtStr($VAR_TAGFOLD) . " = ${q}$cfg{$TAGpKEY}${q}\n";
+            print STDOUT &PrtStr($VAR_SUBFOLD) . " = ${q}$cfg{$SUBfKEY}${q}\n";
+            print STDOUT &PrtStr($VAR_MAKESUB) . " = ${q}$cfg{$MAKEKEY}${q}\n";
+            print STDOUT &PrtStr($VAR_NAME_AF) . " = ${q}$cfg{$NAMEKEY}${q}\n";
+        }
+        exit 0;
+    }
+    # OUTPUT (build) THE PRECOMPILED CONFIGURATION FILE FROM THE CONFIGURATION FILE JUST READ IN
+    elsif ( $CLIref->{$BCFGKEY} > 0 )
+    {
+        my $Oline  = '%HoH = ('; # open the HASH of HASH lines
+        my $Sline  = '        '; # spaces 
+        my $Cline  = '       );'; # open the HASH of HASH lines
+        my $tStamp = strftime('%d %B %Y %T', localtime);
+        my $user   = $ENV{'USER'}; $user = "UNKNOWN" if ($user eq "");
+
+        print STDERR "ParseCFG: write open $CLIref->{$PREFKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
+        open $cfgh, ">", $CLIref->{$PREFKEY};
+
+        # output the header
+        print $cfgh "#\n";
+        print $cfgh "# Pre-compiled configuation file created:\n";
+        print $cfgh "#   Date: $tStamp\n";
+        print $cfgh "#   From: $CLIref->{$CONFKEY}\n";
+        print $cfgh "#   User: $user\n";
+        print $cfgh "#\n";
+        print $cfgh "\n";
+
+        # output configuration for the 3
+        print $cfgh '$CLIref->{' . "'" . $HDBGKEY . "'" . '} = ' . "0; # always set to zero by default\n";
+        print $cfgh '$CLIref->{' . "'" . $LOOKKEY . "'" . '} = ' . "'$CLIref->{$LOOKKEY}';\n";
+        print $cfgh '$CLIref->{' . "'" . $PATHKEY . "'" . '} = ' . "'$CLIref->{$PATHKEY}';\n";
+        print $cfgh "\n";
+
+        # output all the N-Tuples
+        print $cfgh "$Oline\n"; # open HoH declaration line
+        $spch = '        '; 
         for $tKey ( sort keys %HoH )
         {
             %cfg = %{ $HoH{$tKey} };
-            print STDERR "$tKey = {   # started on line " . $cfg{$LINEKEY} . "\n";
-            $tKey =~ s@.@ @g;
-            print STDERR "$tKey       $VAR_TAGFOLD=" . '"' . $cfg{$TAGpKEY} . '"' . "\n";
-            print STDERR "$tKey       $VAR_SUBFOLD=" . '"' . $cfg{$SUBfKEY} . '"' . "\n";
-            print STDERR "$tKey       $VAR_MAKESUB=" . '"' . $cfg{$MAKEKEY} . '"' . "\n";
-            print STDERR "$tKey       $VAR_NAME_AF=" . '"' . $cfg{$NAMEKEY} . '"' . "\n";
-            print STDERR "$tKey   }\n";
+            print $cfgh $Sline . "'$tKey' => {   # started on line " . $cfg{$LINEKEY} . "\n";
+            $spch = $tKey;
+            $spch =~ s@.@ @g; # $spch is now just spaces
+            print $cfgh $Sline . "$spch       '$TAGpKEY' => " . '"' . $cfg{$TAGpKEY} . '",' . "\n";
+            print $cfgh $Sline . "$spch       '$SUBfKEY' => " . '"' . $cfg{$SUBfKEY} . '",' . "\n";
+            print $cfgh $Sline . "$spch       '$MAKEKEY' => " . '"' . $cfg{$MAKEKEY} . '",' . "\n";
+            print $cfgh $Sline . "$spch       '$NAMEKEY' => " . '"' . $cfg{$NAMEKEY} . '",' . "\n";
+            print $cfgh $Sline . "$spch      },\n";
+        }
+        print $cfgh "$Cline\n"; # close HoH declaration line
+        exit 0; # yes, this exits right here, we are done with building the precompiled configuration file
+    }
+    # OUTPUT THE INTERNAL HASH OF HASHES if all we are doing is parsing, or if debug is high enough
+    if ( $CLIref->{$PARSKEY} || $CLIref->{$HDBGKEY} > ($dbgInc + 0) )
+    {
+        print STDERR "$VAR_H_DEBUG=" . $CLIref->{$HDBGKEY} . "\n";
+        print STDERR "$VAR_SVNLOOK=" . $CLIref->{$LOOKKEY} . "\n";
+        print STDERR "$VAR_SVNPATH=" . $CLIref->{$PATHKEY} . "\n";
+        print STDERR "\n";
+        for $tKey ( sort keys %HoH )
+        {
+            $spch = $tKey;
+            $spch =~ s@.@ @g;        # make a string of spaces
+            %cfg = %{ $HoH{$tKey} }; # load the config hash
+            print STDERR "$tKey = {";
+            print STDERR "   # started on line $cfg{$LINEKEY}" if ( exists $cfg{$LINEKEY} );
+            print STDERR "\n";
+            print STDERR "$spch       $VAR_TAGFOLD=" . '"' . $HoH{$tKey}{$TAGpKEY} . '"' . " # literal only\n";
+            print STDERR "$spch       $VAR_SUBFOLD=" . '"' . $HoH{$tKey}{$SUBfKEY} . '"' . " # literal, a glob, or blank\n";
+            print STDERR "$spch       $VAR_MAKESUB=" . '"' . $HoH{$tKey}{$MAKEKEY} . '"' . " # authorized committers - can create subfolders/subprojects\n";
+            print STDERR "$spch       $VAR_NAME_AF=" . '"' . $HoH{$tKey}{$NAMEKEY} . '"' . " # authorised committers only - name of folder for archiving\n";
+            print STDERR "$spch   }\n";
         }
     }
     return ( %HoH );
-}
+} # LEAVE: parse config file
 
-# LEAVE: parse config file
-################################################################################
-
-################################################################################
-# ENTER: parse command line
-sub ParseCLI
+sub ParseCLI # ENTER: parse command line
 {
-    my $Pname = shift;
-    my $Conff = shift;
+    my $Pname = shift;   # program name
+    my $Conff = shift;   # name of configuation file
+    my $PreCf = shift;   # name of "pre-compiled" configuration file
     my %cli = ();        # the hash to load with values gotten from the
     ###################### command line, in production there will always
     ###################### only be 2 command line options, the path to
@@ -1005,15 +1111,18 @@ sub ParseCLI
     ######################
     ###################### everthing neeed as initial default in case one of the
     ###################### Print...AndExit functions is called.
-    $cli{$CLIDKEY} = 0;             # 1 if --debug found on command line
+    $cli{$BCFGKEY} = 0;             # 1 if --build on command line
+    $cli{$CLIDKEY} = 0;             # 1 if --debug on command line
     $cli{$CONFKEY} = $Conff;        # name of config file - it can be changed
+    $cli{$DUMPKEY} = 0;             # revert a precompiled config file
     $cli{$HDBGKEY} = $DEF_H_DEBUG;  # hook debug level
-    $cli{$JUSTKEY} = 0;             # just parse config and exit if 1
+    $cli{$PARSKEY} = 0;             # 1 if --parse on command line
     $cli{$LOOKKEY} = $DEF_SVNLOOK;  # default path to svnlook
     $cli{$PATHKEY} = $DEF_SVNPATH;  # default path to svn
+    $cli{$PREFKEY} = $PreCf;        # name of precompiled config file - it can be changed
     $cli{$RCLIKEY} = 0;             # 1 if we know we are running CLI
-    $cli{$SVNREPO} = "";            # path to repo
-    $cli{$SVNIDEN} = "";            # transaction id
+    $cli{$SVNIDEN} = "";            # transaction id -- this from subversion or dummied up
+    $cli{$SVNREPO} = "";            # path to repo -- this from subversion or dummied up
 
     $ARGV[0] = '--help' if ( $#ARGV < 0 );
     while ( $#ARGV >= 0 )
@@ -1023,79 +1132,80 @@ sub ParseCLI
         # ENTER: options that cause an immediate exit after doing their job
         if    ( $ARGV[0] eq '--help'          or $ARGV[0] eq '-h'  )
         {
-            &PrintUsageAndExit($Pname, $Conff, $cli{$LOOKKEY}, $cli{$PATHKEY});
+            &PrintUsageAndExit($Pname, $Conff, $PreCf, $cli{$LOOKKEY}, $cli{$PATHKEY});
         }
         elsif ( $ARGV[0] eq '--generate'      or $ARGV[0] eq '-g'  )
         {
-            &PrintDefaultConfigAndExit();
+            &PrintDefaultConfigAndExit(0);
         }
         elsif ( $ARGV[0] eq '--version'       or $ARGV[0] eq '-v'  )
         {
             &PrintVersionAndExit();
         }
-
-        elsif ( $ARGV[0] eq '--parse'         or $ARGV[0] eq '-p'  )
-        {
-            $cli{$JUSTKEY} = 1;
-            $cli{$RCLIKEY} = 1; # running on comamnd line
-        }
-
         # LEAVE: options that cause an immediate exit after doing their job
 
         # ENTER: options that mean we are not running under subversion
+        #    ENTER: options that cause a printout then exit
+        elsif ( $ARGV[0] eq '--parse'         or $ARGV[0] eq '-p'  )
+        {
+            $cli{$PARSKEY} = 1;
+            $cli{$RCLIKEY} = 1; # running on comamnd line
+        }
+        elsif ( $ARGV[0] eq '--build'         or $ARGV[0] eq '-b'  )
+        {
+            $cli{$BCFGKEY} = 1;
+            $cli{$RCLIKEY} = 1; # running on comamnd line
+        }
+        elsif ( $ARGV[0] eq '--revert'        or $ARGV[0] eq '-r'  )
+        {
+            $cli{$DUMPKEY} = 1;
+            $cli{$RCLIKEY} = 1; # running on comamnd line
+        }
+        #    ENTER: options that cause a printout then exit
+
         elsif ( $ARGV[0] =~ '--config=?+'                          )
         {
             $cli{$CONFKEY} = $ARGV[0]; $cli{$CONFKEY} =~ s@--config=@@;
-            $cli{$RCLIKEY} = 1; # running on comamnd line
+            $cli{$PREFKEY} = "$cli{$CONFKEY}.pl";
+            $cli{$RCLIKEY} = 1; # running on command line
         }
         elsif ( $ARGV[0] =~ '-c..*'                                )
         {
             $cli{$CONFKEY} = $ARGV[0]; $cli{$CONFKEY} =~ s@-c@@;
-            $cli{$RCLIKEY} = 1; # running on comamnd line
-        }
-
-        elsif ( $ARGV[0] =~ '--output=?+'                          )
-        {
-            $cli{'outputf'} = $ARGV[0]; $cli{'outputf'} =~ s@--output=@@;
-            $cli{$RCLIKEY} = 1; # running on comamnd line
-        }
-        elsif ( $ARGV[0] =~ '-o..*'                                )
-        {
-            $cli{'outputf'} = $ARGV[0]; $cli{'outputf'} =~ s@-o@@;
-            $cli{$RCLIKEY} = 1; # running on comamnd line
+            $cli{$PREFKEY} = "$cli{$CONFKEY}.pl";
+            $cli{$RCLIKEY} = 1; # running on command line
         }
 
         elsif ( $ARGV[0] eq '--nodebug'       or $ARGV[0] eq '-D'  )
         {
             $cli{$CLIDKEY} = 1; # debug on command line, use it only
             $cli{$HDBGKEY} = 0;
-            $cli{$RCLIKEY} = 1; # running on comamnd line
+            $cli{$RCLIKEY} = 1; # running on command line
         }
         elsif ( $ARGV[0] eq '--debug'         or $ARGV[0] eq '-d'  )
         {
             $cli{$CLIDKEY} = 1; # debug on command line, use it only
             if ( $cli{$HDBGKEY} <= 0 ) { $cli{$HDBGKEY} = 1; } else { $cli{$HDBGKEY} ++; }
-            $cli{$RCLIKEY} = 1; # running on comamnd line
+            $cli{$RCLIKEY} = 1; # running on command line
         }
         elsif ( $ARGV[0] =~ '--debug=[0-9]+'                       )
         {
             $cli{$CLIDKEY} = 1; # debug on command line, use it only
             $cli{$HDBGKEY} = $ARGV[0]; $cli{$HDBGKEY} =~ s@--debug=@@;
-            $cli{$RCLIKEY} = 1; # running on comamnd line
+            $cli{$RCLIKEY} = 1; # running on command line
         }
         elsif ( $ARGV[0] =~ '-d[0-9]+'                             )
         {
             $cli{$CLIDKEY} = 1; # debug on command line, use it only
             $cli{$HDBGKEY} = $ARGV[0]; $cli{$HDBGKEY} =~ s@-d@@;
-            $cli{$RCLIKEY} = 1; # running on comamnd line
+            $cli{$RCLIKEY} = 1; # running on command line
         }
         elsif ( $ARGV[0] =~ '-d=[0-9]+'                             )
         {
             $cli{$CLIDKEY} = 1; # debug on command line, use it only
             $cli{$HDBGKEY} = $ARGV[0]; $cli{$HDBGKEY} =~ s@-d=@@;
-            $cli{$RCLIKEY} = 1; # running on comamnd line
+            $cli{$RCLIKEY} = 1; # running on command line
         }
-
         # LEAVE: options that mean we are not running under subversion
 
         # ENTER: fatal errors
@@ -1117,15 +1227,15 @@ sub ParseCLI
 
         # LEAVE: fatal errors
 
-        # ENTER: in production only this block is ever invoked
+        # ENTER: in PRODUCTION, under Subversion, only this block is ever invoked
         else # two command line arguments left
         {
             $cli{$SVNREPO} = $ARGV[0];
             shift @ARGV;
             $cli{$SVNIDEN} = $ARGV[0];
         }
+        # LEAVE: in PRODUCTION, under Subversion, only this block is ever invoked
 
-        # LEAVE: in production only this block is ever invoked
         shift @ARGV;
     }
 
@@ -1141,13 +1251,11 @@ sub ParseCLI
         }
     }
     return ( %cli );
-}
-
-# LEAVE: parse command line
-################################################################################
+} # LEAVE: parse command line
 
 sub PrintDefaultConfigAndExit
 {
+    my $headerOnly = shift;
     my $q = '"';
     print STDOUT "#\n";
     print STDOUT "#  The parsing script will built an 'N-Tuple' from each\n";
@@ -1175,17 +1283,21 @@ sub PrintDefaultConfigAndExit
     print STDOUT "### These comprise an N-Tuple, can be repeated as many times as wanted,\n";
     print STDOUT "### but each ${VAR_TAGFOLD} value must be unique.   It is not allowed to\n";
     print STDOUT "### try to configure the same folder twice (or more)!\n";
-    print STDOUT &PrtStr($VAR_TAGFOLD) . " = ${q}$DEF_TAGFOLD${q}\n";
-    print STDOUT &PrtStr($VAR_SUBFOLD) . " = ${q}$DEF_SUBFOLD${q}\n";
-    print STDOUT &PrtStr($VAR_MAKESUB) . " = $DEF_MAKESUB\n";
-    print STDOUT &PrtStr($VAR_NAME_AF) . " =  ${q}$DEF_NAME_AF${q}\n";
-    exit $exitUserHelp;
-}
+    if ( $headerOnly == 0 )
+    {
+        print STDOUT &PrtStr($VAR_TAGFOLD) . " = ${q}$DEF_TAGFOLD${q}\n";
+        print STDOUT &PrtStr($VAR_SUBFOLD) . " = ${q}$DEF_SUBFOLD${q}\n";
+        print STDOUT &PrtStr($VAR_MAKESUB) . " = $DEF_MAKESUB\n";
+        print STDOUT &PrtStr($VAR_NAME_AF) . " =  ${q}$DEF_NAME_AF${q}\n";
+        exit $exitUserHelp; # only exit if doing the whole thing
+    }
+} # PrintDefaultConfigAndExit
 
 sub PrintUsageAndExit # output and exit
 {
     my $name    = shift;
     my $inif    = shift;
+    my $pref    = shift;
     my $deflook = shift;
     my $defsvn  = shift;
 
@@ -1205,8 +1317,6 @@ sub PrintUsageAndExit # output and exit
     print STDOUT "    THIS SCRIPT IS A HOOK FOR SUBVERSION AND IS NOT MEANT TO BE\n";
     print STDOUT "    RUN FROM THE COMMAND LINE UNDER NORMAL USAGE.\n";
     print STDOUT "\n";
-    print STDOUT "    " . &GetVersion(1) . " \n";
-    print STDOUT "\n";
     print STDOUT "    The required arguments, repo-name and transaction-id, are\n";
     print STDOUT "    provided by subversion.  This subversion hook uses:\n";
     print STDOUT "        '$look'\n";
@@ -1216,6 +1326,9 @@ sub PrintUsageAndExit # output and exit
     print STDOUT "\n";
     print STDOUT "    It uses the configuration file:\n";
     print STDOUT "        $inif\n";
+    print STDOUT "    If it exists, this \"precompiled\" file will take precedence:\n";
+    print STDOUT "        $pref\n";
+    print STDOUT "    and the configuation file will not be read.\n";
     print STDOUT "\n";
     print STDOUT "    When invoked from the command line it will accept these additional\n";
     print STDOUT "    options, there is no way you can give these in production while running\n";
@@ -1227,6 +1340,15 @@ sub PrintUsageAndExit # output and exit
     print STDOUT "                                   Typically used for testing/debugging a\n";
     print STDOUT "                                   configuration file before moving into\n";
     print STDOUT "                                   production.\n";
+    print STDOUT "        --build         | -b       Build a \"precompiled\" file from a config-\n";
+    print STDOUT "                                   uration file.  This speeds up reading the\n";
+    print STDOUT "                                   configuration but is only needed by sites\n";
+    print STDOUT "                                   with a large large number of configuations\n";
+    print STDOUT "                                   - 20 or more - and only if the server is\n";
+    print STDOUT "                                   old and slow.\n";
+    print STDOUT "        --revert        | -r       Opposite of --build, produce a configuation\n";
+    print STDOUT "                                   file from a previoulsy built \"precompiled\"\n";
+    print STDOUT "                                   configuration file\n";
     print STDOUT "        --debug[=n]     | -d[n]    Increment or set the debug value,\n";
     print STDOUT "                                   typically used with the --parse option\n";
     print STDOUT "                                   to explicitly see what is happening\n";
@@ -1237,14 +1359,16 @@ sub PrintUsageAndExit # output and exit
     print STDOUT "      like this\n";
     print STDOUT "        ./$name [options] --debug=N < /dev/null\n";
     print STDOUT "\n";
+    print STDOUT "$name: " . &GetVersion(1) . "\n";
+    print STDOUT "\n";
     exit $exitUserHelp;
-}
+} # PrintUsageAndExit
 
 sub PrintVersionAndExit
 {
     print STDOUT &GetVersion(1) . "\n";
     exit $exitUserHelp;
-}
+} # PrintVersionAndExit
 
 sub PrtStr # string '$s' returned formatted when generating a config file
 {
@@ -1252,16 +1376,17 @@ sub PrtStr # string '$s' returned formatted when generating a config file
     my $f = &FmtStr();
     my $r = sprintf($f, $s);
     return $r;
-}
+} # PrtStr
 
-# cannot pass in one artifact - called when everything fails use debug for more information
+# cannot determine what the commit does - one or more artifacts cannot be correctly parsed
+# this is called when everything else fails, increase debug for more information
 sub SayImpossible
 {
     my $name = shift;
     print STDERR "$name: commit failed, re: UNKNOWN!\n";
     print STDERR "$name: it appears this commit does not modify, add, or delete anything!\n";
     return 0;
-}
+} # SayImpossible
 
 sub SayNoDelete
 {
@@ -1270,12 +1395,9 @@ sub SayNoDelete
     print STDERR "$name: commit failed, delete of protected folders is not allowed!\n";
     print STDERR "$name: commit failed on: $what\n";
     return 0;
-}
+} # SayNoDelete
 
-################################################################################
-# ENTER: determine if we can simply allow this commit or of a protected folder
-#        is part of the commit
-sub SimplyAllow
+sub SimplyAllow # ENTER: determine if we can simply allow this commit or of a protected folder is part of the commit
 {
     my $CLIref = shift;   # reference to command line hash
     my $CFGref = shift;   # reference to configuration hash
@@ -1310,8 +1432,7 @@ sub SimplyAllow
     }
     print STDERR "SimplyAllow: \$justAllow=$justAllow RETURNED\n" if ( $CLIref->{$HDBGKEY} > 1 );
     return $justAllow;
-}
-
+} # SimplyAllow: LEAVE: determine if we can simply allow this commit or of a protected folder is part of the commit
 
 sub TheAddIsAllowed
 {
@@ -1341,22 +1462,22 @@ sub TheAddIsAllowed
     for $arrayRef ( @{ $ADDref } ) # we know all these are protected and to be added
     {
         ($tupKey, $artifact) = ( @{ $arrayRef } );
-        $pfold = $CFGref->{$tupKey}{$TAGpKEY};
-        $amake = $CFGref->{$tupKey}{$MAKEKEY};
-        $afold = $CFGref->{$tupKey}{$NAMEKEY};
-        $sfold = $CFGref->{$tupKey}{$SUBfKEY};
+        $pfold = $CFGref->{$tupKey}{$TAGpKEY}; # protected folder
+        $amake = $CFGref->{$tupKey}{$MAKEKEY}; # authorised to make subfolders
+        $afold = $CFGref->{$tupKey}{$NAMEKEY}; # archive folder name
+        $sfold = $CFGref->{$tupKey}{$SUBfKEY}; # subfolder name - glob is allowed here
 
         if ( $CLIref->{$HDBGKEY} > 4 )
         {
-            print STDERR 'TheAddIsAllowed: $tupKey  =' . "$tupKey\n";
-            print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact\n";
-            print STDERR 'TheAddIsAllowed: $pfold=' . "$pfold\n";
-            print STDERR 'TheAddIsAllowed: $afold=' . "$afold\n";
-            print STDERR 'TheAddIsAllowed: $amake=' . "$amake\n";
-            print STDERR 'TheAddIsAllowed: $sfold=' . "$sfold\n";
+            print STDERR 'TheAddIsAllowed: $tupKey'   . "\t= $tupKey\n";
+            print STDERR 'TheAddIsAllowed: $artifact' . "\t= $artifact\n";
+            print STDERR 'TheAddIsAllowed: $pfold'    . "\t\t= $pfold\n";
+            print STDERR 'TheAddIsAllowed: $afold'    . "\t\t= $afold\n";
+            print STDERR 'TheAddIsAllowed: $amake'    . "\t\t= $amake\n";
+            print STDERR 'TheAddIsAllowed: $sfold'    . "\t\t= $sfold\n";
         }
 
-        # IN ORDER TO ENSURE CORRECTLY FIGURING OUT WHAT THE USER IS DOING TEST LIKE THIS:
+        # IN ORDER TO ENSURE CORRECTLY FIGURING OUT WHAT THE USER IS DOING TEST IN THIS ORDER:
         # 1) attempting to add to the Achive folder?
         # 2) attempting to add to a tag?
         # 3) attempting to add _the_ Achive folder itself?
@@ -1366,12 +1487,13 @@ sub TheAddIsAllowed
         # 7) attempting to add a file that is not part of a tag?
 
         # 1) attempting to add to the Achive?
-        if    ( $sfold eq "" and $afold eq "" ) { $glob = "";                        }
-        elsif ( $sfold eq "" and $afold ne "" ) { $glob = $pfold . $afold . "/?*"; }
-        elsif ( $sfold ne "" and $afold eq "" ) { $glob = "";                        }
-        elsif ( $sfold ne "" and $afold ne "" ) { $glob = $sfold . $afold . "/?*"; }
+        if    ( $sfold eq "" and $afold eq "" ) { $glob = "";                              } # no subfolder, no archive folder name
+        elsif ( $sfold eq "" and $afold ne "" ) { $glob = $pfold . '/' . $afold . "/?*";   } # no subfolder, yes archive folder name
+        elsif ( $sfold ne "" and $afold eq "" ) { $glob = "";                              } # yes subfolder, not arhive folder name
+        elsif ( $sfold ne "" and $afold ne "" ) { $glob = $sfold . '/' . $afold . "/?*";   } # yes subfolder, yes archive folder name
         if ( $glob ne "" )
         {
+            print STDERR "TheAddIsAllowed: if ( match_glob( $glob, $artifact ) ) is the test to see if adding to archive folder\n" if ( $CLIref->{$HDBGKEY} > 5 );
             if ( match_glob( $glob, $artifact ) )
             {
                 print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS UNDER THE ARCHIVE FOLDER\n" if ( $CLIref->{$HDBGKEY} > 4 );
@@ -1382,29 +1504,29 @@ sub TheAddIsAllowed
                 last;
             }
         }
-        print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING TO ARCHIVE FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
+        print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING TO THE ARCHIVE FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
 
         # 2) attempting to add to a tag?
-        if    ( $sfold eq ""                    ) { $glob = $pfold . "/?*"; }
-        elsif ( $sfold ne ""                    ) { $glob = $sfold . "/?*"; }
+        if    ( $sfold eq ""                    ) { $glob = $pfold . "/?*"; } # no subfolder
+        else                                      { $glob = $sfold . "/?*"; }
+        print STDERR "TheAddIsAllowed: if ( match_glob( $glob, $artifact ) ) is the test to see if adding a new tag\n" if ( $CLIref->{$HDBGKEY} > 5 );
         if ( match_glob( $glob, $artifact ) )
         {
-
             # no problem - adding a tag
-            # no work but this match prevents the next one,
-            # and that is why it is here
+            # no work but this match prevents the next one, and that is why it is here
             print STDERR "TheAddIsAllowed: stop TESTING -> THIS IS PART OF A NEW TAG $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
         }
         else
         {
-
-            # 3) attempting to add _the_ Achive folder itself?
-            if    ( $sfold eq "" and $afold eq "" ) { $glob = "";                      }
-            elsif ( $sfold eq "" and $afold ne "" ) { $glob = $pfold . $afold . "/"; }
-            elsif ( $sfold ne "" and $afold eq "" ) { $glob = "";                      }
-            elsif ( $sfold ne "" and $afold ne "" ) { $glob = $sfold . $afold . "/"; }
+            print STDERR "TheAddIsAllowed: KEEP TESTING -> THIS IS NOT PART OF A NEW TAG $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
+            # 3) attempting to add the _Achive folder_ itself?
+            if    ( $sfold eq "" and $afold eq "" ) { $glob = "";                            } # no subfolder, no archive folder name
+            elsif ( $sfold eq "" and $afold ne "" ) { $glob = $pfold . '/' . $afold . "/";   } # no subfolder, yes archive folder name
+            elsif ( $sfold ne "" and $afold eq "" ) { $glob = "";                            } # yes subfolder, not arhive folder name
+            elsif ( $sfold ne "" and $afold ne "" ) { $glob = $sfold . '/' . $afold . "/";   } # yes subfolder, yes archive folder name
             if ( $glob ne "" )
             {
+                print STDERR "TheAddIsAllowed: if ( match_glob( $glob, $artifact ) ) is the test to see if adding the archive folder\n" if ( $CLIref->{$HDBGKEY} > 5 );
                 if ( match_glob( $glob, $artifact ) )
                 {
                     print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS THE ARCHIVE FOLDER\n" if ( $CLIref->{$HDBGKEY} > 2 );
@@ -1413,12 +1535,12 @@ sub TheAddIsAllowed
                     next;
                 }
             }
-            print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING THE _ARCHIVE FOLDER_ ITSELF $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
+            print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING THE ARCHIVE FOLDER ITSELF $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
 
             # 4) attempting to add a project folder?
             if ( &AddingSubFolder($pfold, $sfold, $artifact, $CLIref->{$HDBGKEY}) == 1 )
             {
-                print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS A NEW PROJECT SUB FOLDER\n" if ( $CLIref->{$HDBGKEY} > 2 );
+                print STDERR "TheAddIsAllowed: stop TESTING -> THIS IS A A NEW PROJECT SUB FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
                 $commit = &Authorized($Pname, $author, $amake, $artifact, 'add a project (or sub) folder', $CLIref->{$HDBGKEY});
                 last if ( $commit == 0 );
                 next;
@@ -1439,13 +1561,11 @@ sub TheAddIsAllowed
                 print STDERR "$Pname: you can only only add new tags\n";
                 if ( $artifact =~ m@/$@ )
                 {
-
                     # 6) attempting to add a folder? <= this should never happen, above takes care of it
                     print STDERR "$Pname: commit failed, you cannot add a folder!\n";
                 }
                 else
                 {
-
                     # 7) attempting to add a file that is not part of a tag?
                     print STDERR "$Pname: commit failed, you cannot add a file to a protected folder!\n";
                 }
@@ -1457,10 +1577,7 @@ sub TheAddIsAllowed
     }
     print STDERR "TheAddIsAllowed: RETURNED $commit\n" if ( $CLIref->{$HDBGKEY} > 2 );
     return $commit;
-}
-# LEAVE: determine if we can simply allow this commit or of a protected folder
-#        is part of the commit
-################################################################################
+} # TheAddIsAllowed
 
 sub TheMoveIsAllowed
 {
@@ -1490,6 +1607,7 @@ sub TheMoveIsAllowed
     my @pureAdd;          # array of additions found that do not have matching delete/move
     my @tmp;              # used to load the @pureAdd array with data
 
+    # walk each of the artifacts to be added
     for $addRef ( @{ $ADDref } )
     {
         ($addKey, $addPath) = ( @{ $addRef } );
@@ -1510,32 +1628,26 @@ sub TheMoveIsAllowed
                 print STDERR "TheMoveIsAllowed: ADD cfgkey $addKey PATH with archive removed $addPathNoArch\n" if ( $CLIref->{$HDBGKEY} > 2 );
                 $delNdx = -1; # impossible value
                 $count = 0;
-               #if ( ! ( $#$DELref < 0 ) ) # check that there is somethhing left in the array to avoid uninitialized value warnings
-               #{
-                    for $delRef ( @{ $DELref } )
+                # walk each of the artifacts to be deleted and look to see if the thing added is related to the artifact being deleted by the archive folder name
+                for $delRef ( @{ $DELref } )
+                {
+                    ($delKey, $delPath) = ( @{ $delRef } );
+                    print STDERR "TheMoveIsAllowed: DEL cfgkey $delKey path with Archive $delPath\n" if ( $CLIref->{$HDBGKEY} > 2 );
+                    if ( $addKey eq $delKey and $addPathNoArch eq $delPath )
                     {
-                        ($delKey, $delPath) = ( @{ $delRef } );
-                        print STDERR "TheMoveIsAllowed: DEL cfgkey $delKey path with Archive $delPath\n" if ( $CLIref->{$HDBGKEY} > 2 );
-                        if ( $addKey eq $delKey and $addPathNoArch eq $delPath )
+                        $delNdx = $count;
+                        if ( $CLIref->{$HDBGKEY} > 5 )
                         {
-                            $delNdx = $count;
-                            if ( $CLIref->{$HDBGKEY} > 5 )
-                            {
-                                print STDERR "TheMoveIsAllowed: DEL is moving to Arhive, that's OK\n";
-                                print STDERR "TheMoveIsAllowed: ADD KEY  >>$addKey<<\n";
-                                print STDERR "TheMoveIsAllowed: DEL KEY  >>$delKey<<\n";
-                                print STDERR "TheMoveIsAllowed: ADD PATH >>$addPathNoArch<<\n";
-                                print STDERR "TheMoveIsAllowed: DEL PATH >>$delPath<<\n";
-                            }
-                            last;
+                            print STDERR "TheMoveIsAllowed: DEL is moving to Arhive, that's OK\n";
+                            print STDERR "TheMoveIsAllowed: ADD KEY  >>$addKey<<\n";
+                            print STDERR "TheMoveIsAllowed: DEL KEY  >>$delKey<<\n";
+                            print STDERR "TheMoveIsAllowed: ADD PATH >>$addPathNoArch<<\n";
+                            print STDERR "TheMoveIsAllowed: DEL PATH >>$delPath<<\n";
                         }
-                        $count ++;
+                        last;
                     }
-               #}
-               #else
-               #{
-               #    print STDERR "TheMoveIsAllowed: del reference count is nagative: $#$DELref\n" if ( $CLIref->{$HDBGKEY} > 3 );
-               #}
+                    $count ++;
+                }
                 if ( $delNdx != -1 ) # was the index into the del array found?
                 {
                     print STDERR "TheMoveIsAllowed:        splice delNdx is: $delNdx\n" if ( $CLIref->{$HDBGKEY} > 4 );
@@ -1543,7 +1655,7 @@ sub TheMoveIsAllowed
                 }
                 else
                 {
-                    print STDERR "TheMoveIsAllowed: DO NOT SPLICE delNdx is nagative: $delNdx\n" if ( $CLIref->{$HDBGKEY} > 4 );
+                    print STDERR "TheMoveIsAllowed: delNdx is nagative: $delNdx, will not SPLICE it out of the delete array\n" if ( $CLIref->{$HDBGKEY} > 4 );
                 }
             }
             else # found a path to add but it does not have "archive folder name" as next to last folder
@@ -1598,11 +1710,11 @@ sub TheMoveIsAllowed
     }
     print STDERR "ALlowMove: RETURNED $commit\n" if ( $CLIref->{$HDBGKEY} > 2 );
     return $commit;
-}
+} # TheMoveIsAllowed
 
-# if the (now parsed) configuration file has the same tag
-# folder to protect repeated error out and die.  a tag
-# can only be given once.
+# if the (now parsed into PERL hash of hash) configuration file has the _identical_
+# tag folder to protect repeated (i.e. given more that once) error out and die.
+# a tag folder to protect can only be given once.
 sub ValidateCFGorDie
 {
     my $Pname   = shift;   # name of calling program
@@ -1657,14 +1769,15 @@ sub ValidateCFGorDie
         exit $exitFatalErr;
     }
     return;
-}
+} # ValidateCFGorDie
 
+# THIS IS CALLED DURING CONFIGUATION PARSE - NOT OTHERWISE
 # the subfolder given, if not the empty string, must be
 # a subfolder of the associated tag folder (the one to
 # protect).  E.g:
 #     if   "/tags" is the folder to be protected then
-#     then "/tags/<whatever>" is acceptable, but this
-#     then "/foobar/<whatever>" is NOT
+#     then "/tags/<whatever>" is acceptable, but
+#          "/foobar/<whatever>" is NOT
 # The subfolder specification must truly be a subfolder
 # of the associated folder to be protected.
 sub ValidateSubFolderOrDie
@@ -1705,7 +1818,7 @@ sub ValidateSubFolderOrDie
         }
     }
     return;
-}
+} # ValidateSubFolderOrDie
 
 sub ZeroOneOrN # return 0, 1, or any N
 {
@@ -1723,6 +1836,7 @@ sub ZeroOneOrN # return 0, 1, or any N
     elsif ( m/^enable$/i ) { $rvalue = 1; }
     else                   { $rvalue = 0; } # default to zero
     return $rvalue;
-}
-# need by perl
+} # ZeroOneOrN
+
+# this last line is need by perl
 1;
