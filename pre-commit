@@ -27,9 +27,9 @@ $DIRE =~ s@/[^/][^/]*$@@;    # print "DIRE=$DIRE\n";
 
 ################################################################################
 # ENTER: CONFIG FILE, PRE-CONFIG FILE and REQUIRED SUBROUTINE FILE
-my $CFGF = "$DIRE/tagprotect.cfg";     # the name of the config file itself
-my $PCFG = "$DIRE/tagprotect.cfg.pl";  # the name of the "pre-compiled" file
-require "$DIRE/tagprotect.pl";         # subroutines, read them in
+my $CFGF = "$DIRE/tagprotect.conf";     # the name of the config file itself
+my $PCFG = "$DIRE/tagprotect.conf.pl";  # the name of the "pre-compiled" file
+require "$DIRE/tagprotect.pl";          # subroutines, read them in
 # LEAVE: CONFIG FILE, PRE-CONFIG FILE and REQUIRED SUBROUTINE FILE
 ################################################################################
 

@@ -55,30 +55,45 @@ use POSIX qw(strftime);
 # hard default                        actual variable      variable looked for
 # if not in config                  init w/useless value   in configuration file
 # CLI
+
+
+
+#  --debug/-d/--debug=/-dN
 my $VAR_H_DEBUG = "DEBUG";              # looked for in config file
 my $DEF_H_DEBUG =  0;
 my     $HDBGKEY = 'h_debug';            # CLI key, debug level
 
+#  not setable on the command line
 my $VAR_SVNLOOK = "SVNLOOK";            # variable looked for in config file
 my $DEF_SVNLOOK = "/usr/bin/svnlook";   # default value if not in config;
 my     $LOOKKEY = 'svnlook';            # CLI key, path to svnlook program
 
+#  not setable on the command line
 my $VAR_SVNPATH = "SVNPATH";            # variable looked for in config file
 my $DEF_SVNPATH = "/usr/bin/svn";       # default value if not in config
 my     $PATHKEY = 'svnpath';            # CLI key, path to svn program
 
+#  --build/-b
 my     $BCFGKEY = 'buildpl';            # CLI key, output PERL pre-build config from config file
+#  not setable on the command line
 my     $CLIDKEY = 'cli_dbg';            # CLI key, was debug gotten from command line
+#  --parse=<file>/-p<file> changes this
 my     $CONFKEY = 'configf';            # CLI key, name of config file, can change when debugging
+#  --revert/-r
 my     $DUMPKEY = 'dump_pl';            # CLI key, reverse the above, PERL prebuild to config file
+#  --parse/-p
 my     $PARSKEY = 'justcfg';            # CLI key, just parse the config and exit
-my     $PREFKEY = 'preconf';            # CLI key, name of precompiled config file, can change when debugging
+#  not setable on the command line, it it exists it is read in
+my     $PREFKEY = 'preconf';            # CLI key, name of precompiled config file
+#  not setable on the command line, this is auto detected
 my     $RCLIKEY = 'cli_run';            # CLI key, running from command line
+#  set by subversion when in PRODUCTION
 my     $SVNIDEN = 'svn_tID';            # CLI key, subversion transaction key
+#  set by subversion when in PRODUCTION
 my     $SVNREPO = 'svnRepo';            # CLI key, path to svn repository
 
 # CFG
-my $VAR_TAGFOLD = "TAG_FOLDER";         # variable looked for in config file
+my $VAR_TAGFOLD = "PROTECTED_PARENT";   # variable looked for in config file
 my $DEF_TAGFOLD = "/tags";              # default value if not in config
 my     $TAGpKEY = "$VAR_TAGFOLD";       # CFG key, key for this N-Tuple, must be a real path
 
@@ -87,15 +102,15 @@ my     $TAGpKEY = "$VAR_TAGFOLD";       # CFG key, key for this N-Tuple, must be
 #           needed for line no
 my     $LINEKEY = "ProtectLineNo";      # CFG key, line number in the config file of this tag folder
 
-my $VAR_SUBFOLD = "TAG_SUBFOLDERS";     # variable looked for in config file
+my $VAR_SUBFOLD = "PROTECTED_PRJDIRS";  # variable looked for in config file
 my $DEF_SUBFOLD = "${DEF_TAGFOLD}/*";   # default value if not in config
 my     $SUBfKEY = "$VAR_SUBFOLD";       # CFG key, subfolders will be "globbed"
 
-my $VAR_MAKESUB = "TAG_SUBCREATORS";    # variable looked for in config file
+my $VAR_MAKESUB = "PRJDIR_CREATORS";    # variable looked for in config file
 my $DEF_MAKESUB =  "*";                 # default value if not in config
 my     $MAKEKEY = "$VAR_MAKESUB";       # CFG key, those who can create sub folders
 
-my $VAR_NAME_AF = "ARCHIVE_FOLDER";     # variable looked for in config file
+my $VAR_NAME_AF = "ARCHIVE_DIRECTORY";  # variable looked for in config file
 my $DEF_NAME_AF =  "Archive";           # default value if not in config
 my     $NAMEKEY = "$VAR_NAME_AF";       # CFG key, directory name of the archive folder
 # LEAVE: HARD DEFAULTS FOR CONFIG FILE, VARIABLES SET IN THE CONFIG FILE, etc
@@ -716,17 +731,23 @@ sub ParseCFG # ENTER: parse config file
     my $dbgInc = 5;       # set the default high so this function does not output unless in command line mode
     $dbgInc = 0 if ( $CLIref->{$RCLIKEY} || $CLIref->{$PARSKEY} || $CLIref->{$BCFGKEY} || $CLIref->{$DUMPKEY} );
 
-    if ( $CLIref->{$BCFGKEY} == 0 )
+    # do not read the pre-compiled file if we have to build it
+    # and do not read the pre-compiled file it we have been asked to parse the configuation file
+    if ( $CLIref->{$BCFGKEY} == 0 && $CLIref->{$PARSKEY} == 0 )
     {
-        $readPreComp = 1 if ( -f $CLIref->{$PREFKEY} );
+        $readPreComp = 1 if ( -f $CLIref->{$PREFKEY} ); # if the precompiled file exists it will be read in
     }
 
     if ( $readPreComp ) # if precompiled file, and not command line options to the contrary, just require it and done!
     {
+        my $dbgBefore = $CLIref->{$HDBGKEY};
         print STDERR "ParseCFG: read precompiled configuration file \"$CLIref->{$PREFKEY}\"\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) );
         require "$CLIref->{$PREFKEY}";
+        # if the command line set the debug higher than what it now is set back to the command line value
+        $CLIref->{$HDBGKEY} = $dbgBefore if ($CLIref->{$HDBGKEY} < $dbgBefore);
     }
-    else # read the regular config file
+    # read the regular config file
+    else
     {
         if ( ! -f $CLIref->{$CONFKEY} )
         {
@@ -750,7 +771,7 @@ sub ParseCFG # ENTER: parse config file
         }
         else
         {
-            print STDERR "ParseCFG: read open $CLIref->{$CONFKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
+            print STDERR "ParseCFG: read open $CLIref->{$CONFKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) );
             open $cfgh, "<", $CLIref->{$CONFKEY};
             while (<$cfgh>)
             {
@@ -1010,7 +1031,7 @@ sub ParseCFG # ENTER: parse config file
             print STDERR "$Pname: ABORTING!\n";
             exit 1;
         }
-        &PrintDefaultConfigAndExit(1);
+        &PrintDefaultConfigAndExit(1, $CLIref->{$HDBGKEY}); # get the header part of the "revert", will not exit!!
         $_ = 0;
         for $tKey ( sort keys %HoH )
         {
@@ -1034,44 +1055,41 @@ sub ParseCFG # ENTER: parse config file
         my $tStamp = strftime('%d %B %Y %T', localtime);
         my $user   = $ENV{'USER'}; $user = "UNKNOWN" if ($user eq "");
 
-        print STDERR "ParseCFG: write open $CLIref->{$PREFKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
-        open $cfgh, ">", $CLIref->{$PREFKEY};
-
         # output the header
-        print $cfgh "#\n";
-        print $cfgh "# Pre-compiled configuation file created:\n";
-        print $cfgh "#   Date: $tStamp\n";
-        print $cfgh "#   From: $CLIref->{$CONFKEY}\n";
-        print $cfgh "#   User: $user\n";
-        print $cfgh "#\n";
-        print $cfgh "\n";
+        print STDOUT "#\n";
+        print STDOUT "# Pre-compiled configuation file created:\n";
+        print STDOUT "#   Date: $tStamp\n";
+        print STDOUT "#   From: $CLIref->{$CONFKEY}\n";
+        print STDOUT "#   User: $user\n";
+        print STDOUT "#\n";
+        print STDOUT "\n";
 
         # output configuration for the 3
-        print $cfgh '$CLIref->{' . "'" . $HDBGKEY . "'" . '} = ' . "0; # always set to zero by default\n";
-        print $cfgh '$CLIref->{' . "'" . $LOOKKEY . "'" . '} = ' . "'$CLIref->{$LOOKKEY}';\n";
-        print $cfgh '$CLIref->{' . "'" . $PATHKEY . "'" . '} = ' . "'$CLIref->{$PATHKEY}';\n";
-        print $cfgh "\n";
+        print STDOUT '$CLIref->{' . "'" . $HDBGKEY . "'" . '} = ' . "0; # always set to zero by default\n";
+        print STDOUT '$CLIref->{' . "'" . $LOOKKEY . "'" . '} = ' . "'$CLIref->{$LOOKKEY}';\n";
+        print STDOUT '$CLIref->{' . "'" . $PATHKEY . "'" . '} = ' . "'$CLIref->{$PATHKEY}';\n";
+        print STDOUT "\n";
 
         # output all the N-Tuples
-        print $cfgh "$Oline\n"; # open HoH declaration line
+        print STDOUT "$Oline\n"; # open HoH declaration line
         $spch = '        '; 
         for $tKey ( sort keys %HoH )
         {
             %cfg = %{ $HoH{$tKey} };
-            print $cfgh $Sline . "'$tKey' => {   # started on line " . $cfg{$LINEKEY} . "\n";
+            print STDOUT $Sline . "'$tKey' => {   # started on line " . $cfg{$LINEKEY} . "\n";
             $spch = $tKey;
             $spch =~ s@.@ @g; # $spch is now just spaces
-            print $cfgh $Sline . "$spch       '$TAGpKEY' => " . '"' . $cfg{$TAGpKEY} . '",' . "\n";
-            print $cfgh $Sline . "$spch       '$SUBfKEY' => " . '"' . $cfg{$SUBfKEY} . '",' . "\n";
-            print $cfgh $Sline . "$spch       '$MAKEKEY' => " . '"' . $cfg{$MAKEKEY} . '",' . "\n";
-            print $cfgh $Sline . "$spch       '$NAMEKEY' => " . '"' . $cfg{$NAMEKEY} . '",' . "\n";
-            print $cfgh $Sline . "$spch      },\n";
+            print STDOUT $Sline . "$spch       '$TAGpKEY' => " . '"' . $cfg{$TAGpKEY} . '",' . "\n";
+            print STDOUT $Sline . "$spch       '$SUBfKEY' => " . '"' . $cfg{$SUBfKEY} . '",' . "\n";
+            print STDOUT $Sline . "$spch       '$MAKEKEY' => " . '"' . $cfg{$MAKEKEY} . '",' . "\n";
+            print STDOUT $Sline . "$spch       '$NAMEKEY' => " . '"' . $cfg{$NAMEKEY} . '",' . "\n";
+            print STDOUT $Sline . "$spch      },\n";
         }
-        print $cfgh "$Cline\n"; # close HoH declaration line
+        print STDOUT "$Cline\n"; # close HoH declaration line
         exit 0; # yes, this exits right here, we are done with building the precompiled configuration file
     }
-    # OUTPUT THE INTERNAL HASH OF HASHES if all we are doing is parsing, or if debug is high enough
-    if ( $CLIref->{$PARSKEY} || $CLIref->{$HDBGKEY} > ($dbgInc + 0) )
+    # OUTPUT THE INTERNAL HASH OF HASHES if debug is high enough
+    if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) )
     {
         print STDERR "$VAR_H_DEBUG=" . $CLIref->{$HDBGKEY} . "\n";
         print STDERR "$VAR_SVNLOOK=" . $CLIref->{$LOOKKEY} . "\n";
@@ -1119,7 +1137,7 @@ sub ParseCLI # ENTER: parse command line
     $cli{$PARSKEY} = 0;             # 1 if --parse on command line
     $cli{$LOOKKEY} = $DEF_SVNLOOK;  # default path to svnlook
     $cli{$PATHKEY} = $DEF_SVNPATH;  # default path to svn
-    $cli{$PREFKEY} = $PreCf;        # name of precompiled config file - it can be changed
+    $cli{$PREFKEY} = $PreCf;        # name of precompiled config file
     $cli{$RCLIKEY} = 0;             # 1 if we know we are running CLI
     $cli{$SVNIDEN} = "";            # transaction id -- this from subversion or dummied up
     $cli{$SVNREPO} = "";            # path to repo -- this from subversion or dummied up
@@ -1136,7 +1154,7 @@ sub ParseCLI # ENTER: parse command line
         }
         elsif ( $ARGV[0] eq '--generate'      or $ARGV[0] eq '-g'  )
         {
-            &PrintDefaultConfigAndExit(0);
+            &PrintDefaultConfigAndExit(0, $cli{$HDBGKEY});
         }
         elsif ( $ARGV[0] eq '--version'       or $ARGV[0] eq '-v'  )
         {
@@ -1146,11 +1164,6 @@ sub ParseCLI # ENTER: parse command line
 
         # ENTER: options that mean we are not running under subversion
         #    ENTER: options that cause a printout then exit
-        elsif ( $ARGV[0] eq '--parse'         or $ARGV[0] eq '-p'  )
-        {
-            $cli{$PARSKEY} = 1;
-            $cli{$RCLIKEY} = 1; # running on comamnd line
-        }
         elsif ( $ARGV[0] eq '--build'         or $ARGV[0] eq '-b'  )
         {
             $cli{$BCFGKEY} = 1;
@@ -1161,20 +1174,37 @@ sub ParseCLI # ENTER: parse command line
             $cli{$DUMPKEY} = 1;
             $cli{$RCLIKEY} = 1; # running on comamnd line
         }
-        #    ENTER: options that cause a printout then exit
+        elsif ( $ARGV[0] =~ '--revert=?+'                          )
+        {
+            $cli{$DUMPKEY} = 1;
+            $cli{$PREFKEY} = $ARGV[0]; $cli{$PREFKEY} =~ s@--revert=@@;
+            $cli{$RCLIKEY} = 1; # running on comamnd line
+        }
+        elsif ( $ARGV[0] =~ '-r..*'                                )
+        {
+            $cli{$DUMPKEY} = 1;
+            $cli{$PREFKEY} = $ARGV[0]; $cli{$PREFKEY} =~ s@-r@@;
+            $cli{$RCLIKEY} = 1; # running on comamnd line
+        }
+        elsif ( $ARGV[0] eq '--parse'         or $ARGV[0] eq '-p'  )
+        {
+            $cli{$PARSKEY} = 1;
+            $cli{$RCLIKEY} = 1; # running on comamnd line
+        }
+        elsif ( $ARGV[0] =~ '--parse=?+'                          )
+        {
+            $cli{$PARSKEY} = 1;
+            $cli{$CONFKEY} = $ARGV[0]; $cli{$CONFKEY} =~ s@--parse=@@;
+            $cli{$RCLIKEY} = 1; # running on command line
+        }
+        elsif ( $ARGV[0] =~ '-p..*'                                )
+        {
+            $cli{$PARSKEY} = 1;
+            $cli{$CONFKEY} = $ARGV[0]; $cli{$CONFKEY} =~ s@-p@@;
+            $cli{$RCLIKEY} = 1; # running on command line
+        }
+        #    LEAVE: options that cause a printout then exit
 
-        elsif ( $ARGV[0] =~ '--config=?+'                          )
-        {
-            $cli{$CONFKEY} = $ARGV[0]; $cli{$CONFKEY} =~ s@--config=@@;
-            $cli{$PREFKEY} = "$cli{$CONFKEY}.pl";
-            $cli{$RCLIKEY} = 1; # running on command line
-        }
-        elsif ( $ARGV[0] =~ '-c..*'                                )
-        {
-            $cli{$CONFKEY} = $ARGV[0]; $cli{$CONFKEY} =~ s@-c@@;
-            $cli{$PREFKEY} = "$cli{$CONFKEY}.pl";
-            $cli{$RCLIKEY} = 1; # running on command line
-        }
 
         elsif ( $ARGV[0] eq '--nodebug'       or $ARGV[0] eq '-D'  )
         {
@@ -1256,9 +1286,22 @@ sub ParseCLI # ENTER: parse command line
 sub PrintDefaultConfigAndExit
 {
     my $headerOnly = shift;
+    my $dbglvl     = shift; # passed in instead of passing $CLIref
     my $q = '"';
+    
+    if ($dbglvl > 0)
+    {
+        if ( $headerOnly )
+        {
+            print STDERR "PrintDefaultConfigAndExit: output default header.\n";
+        }
+        else
+        {
+            print STDERR "PrintDefaultConfigAndExit: output default configuration file.\n";
+        }
+    }
     print STDOUT "#\n";
-    print STDOUT "#  The parsing script will built an 'N-Tuple' from each\n";
+    print STDOUT "#  The parsing script will build an 'N-Tuple' from each\n";
     print STDOUT "#  '${VAR_TAGFOLD}' variable.\n";
     print STDOUT "#\n";
     print STDOUT "# Recognized variable/value pairs are:\n";
@@ -1273,12 +1316,10 @@ sub PrintDefaultConfigAndExit
     print STDOUT "#          ${VAR_MAKESUB}\t= '*' or '<user>, <user>, ...'\n";
     print STDOUT "#          ${VAR_NAME_AF}\t= <name>\n";
     print STDOUT "\n";
-    print STDOUT "\n";
     print STDOUT "### These should be first\n";
     print STDOUT &PrtStr($VAR_H_DEBUG) . " = $DEF_H_DEBUG\n";
     print STDOUT &PrtStr($VAR_SVNPATH) . " = ${q}$DEF_SVNPATH${q}\n";
     print STDOUT &PrtStr($VAR_SVNLOOK) . " = ${q}$DEF_SVNLOOK${q}\n";
-    print STDOUT "\n";
     print STDOUT "\n";
     print STDOUT "### These comprise an N-Tuple, can be repeated as many times as wanted,\n";
     print STDOUT "### but each ${VAR_TAGFOLD} value must be unique.   It is not allowed to\n";
@@ -1287,8 +1328,8 @@ sub PrintDefaultConfigAndExit
     {
         print STDOUT &PrtStr($VAR_TAGFOLD) . " = ${q}$DEF_TAGFOLD${q}\n";
         print STDOUT &PrtStr($VAR_SUBFOLD) . " = ${q}$DEF_SUBFOLD${q}\n";
-        print STDOUT &PrtStr($VAR_MAKESUB) . " = $DEF_MAKESUB\n";
-        print STDOUT &PrtStr($VAR_NAME_AF) . " =  ${q}$DEF_NAME_AF${q}\n";
+        print STDOUT &PrtStr($VAR_MAKESUB) . " = ${q}$DEF_MAKESUB${q}\n";
+        print STDOUT &PrtStr($VAR_NAME_AF) . " = ${q}$DEF_NAME_AF${q}\n";
         exit $exitUserHelp; # only exit if doing the whole thing
     }
 } # PrintDefaultConfigAndExit
@@ -1333,26 +1374,48 @@ sub PrintUsageAndExit # output and exit
     print STDOUT "    When invoked from the command line it will accept these additional\n";
     print STDOUT "    options, there is no way you can give these in production while running\n";
     print STDOUT "    under subversion.\n";
-    print STDOUT "        --generate      | -g       Outputs a default configuration file\n";
-    print STDOUT "                                   with comments.\n";
-    print STDOUT "        --parse         | -p       Read/Parse the configuration file.\n";
-    print STDOUT "        --config=<file> | -c<file> Parse an alternate configuration file.\n";
-    print STDOUT "                                   Typically used for testing/debugging a\n";
-    print STDOUT "                                   configuration file before moving into\n";
-    print STDOUT "                                   production.\n";
-    print STDOUT "        --build         | -b       Build a \"precompiled\" file from a config-\n";
-    print STDOUT "                                   uration file.  This speeds up reading the\n";
-    print STDOUT "                                   configuration but is only needed by sites\n";
-    print STDOUT "                                   with a large large number of configuations\n";
-    print STDOUT "                                   - 20 or more - and only if the server is\n";
-    print STDOUT "                                   old and slow.\n";
-    print STDOUT "        --revert        | -r       Opposite of --build, produce a configuation\n";
-    print STDOUT "                                   file from a previoulsy built \"precompiled\"\n";
-    print STDOUT "                                   configuration file\n";
-    print STDOUT "        --debug[=n]     | -d[n]    Increment or set the debug value,\n";
-    print STDOUT "                                   typically used with the --parse option\n";
-    print STDOUT "                                   to explicitly see what is happening\n";
-    print STDOUT "                                   when reading the configuration file.\n";
+
+    print STDOUT "    --help            | -h      Show usage information and exit.\n";
+    print STDOUT "\n";
+    print STDOUT "    --debug[=n]       | -d[n]   Increment or set the debug value, If given this\n";
+    print STDOUT "                                command line option should be first, otherwise\n";
+    print STDOUT "                                you might get debug output at all, depending\n";
+    print STDOUT "                                upon other command line options.  Typically used\n";
+    print STDOUT "                                with the --parse option to explicitly see what\n";
+    print STDOUT "                                is happening when reading the configuration\n";
+    print STDOUT "                                file.\n";
+    print STDOUT "\n";
+    print STDOUT "    --parse[=file]  | -c[file]  Parse  the  configuration file, default is\n";
+    print STDOUT "                                tagprotect.conf, then exit.  Errors found in the\n";
+    print STDOUT "                                configuration will be printed to standard error.\n";
+    print STDOUT "                                If there are no errors you will get no output\n";
+    print STDOUT "                                unless debug is greater than zero(0).  Typically\n";
+    print STDOUT "                                used for testing/debugging an  alternate\n";
+    print STDOUT "                                configuration file before moving it into\n";
+    print STDOUT "                                production.  NOTE: in production  the\n";
+    print STDOUT "                                configuration  file cannot be changed, you can\n";
+    print STDOUT "                                only do this on the command line.\n";
+    print STDOUT "\n";
+    print STDOUT "    --generate        | -g      Generate a default configuration file, with\n";
+    print STDOUT "                                comments, and  write it to standard output.\n";
+    print STDOUT "                                Typically used for testing/debugging a\n";
+    print STDOUT "                                configuration file before moving into\n";
+    print STDOUT "                                production.\n";
+    print STDOUT "\n";
+    print STDOUT "    --build           | -b      Build (i.e. generate) a \"precompiled\" file from\n";
+    print STDOUT "                                the configuration file, with comments, and write\n";
+    print STDOUT "                                it to standard output. This speeds up reading\n";
+    print STDOUT "                                the configuration but is only needed by sites\n";
+    print STDOUT "                                with a large large number of configuations - say\n";
+    print STDOUT "                                20 or more, your mileage may vary - and only if\n";
+    print STDOUT "                                the server is old and slow. If a precompiled\n";
+    print STDOUT "                                configuation exists pre-commit will read it and\n";
+    print STDOUT "                                ignore the configuration file.\n";
+    print STDOUT "\n";
+    print STDOUT "    --revert[=file] | -r[file]  Opposite of, --build, write to standard output a\n";
+    print STDOUT "                                configuation file from a previously built\n";
+    print STDOUT "                                \"precompiled\" configuration file.\n";
+
     print STDOUT "\n";
     print STDOUT "\n";
     print STDOUT "NOTE: a typical command line usage for debugging purposes would look\n";

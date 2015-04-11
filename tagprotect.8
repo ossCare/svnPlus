@@ -1,0 +1,197 @@
+.\" tagprotect manual page
+.TH TAGPROTECT 8 "April 2015" svnPlus
+.SH NAME
+pre-commit \- subversion plus tag protection
+.SH SYNOPSIS
+.B pre-commit
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+THIS SCRIPT IS A \fBhook\fR FOR Subversion AND IS NOT MEANT
+TO BE RUN FROM THE COMMAND LINE UNDER NORMAL USAGE.
+.PP
+It would be run from the command line for configuration
+testing and configuration debugging.
+.PP
+tagprotect provides immutability (write once) protection
+for the \fB/tags\fR directory of a subversion repository.
+This is the default protected directory and everything
+is configurable.
+.PP
+Subversion requires that this software be invoked with
+the name \fBpre-commit\fR but the associated PERL code is named
+tagprotect.pl.
+.PP
+Installation of this subversion hook is trivial, simply put
+all the files distributed into the directory named
+\fBhooks\fR found under the directory where you have built
+the subversion repository.  Make sure \fBpre-commit\fR is
+executable by the owner of the apache httpd process, or if
+you are not using mod_dav_svn, the the owner of the svnserve
+process
+.PP
+The subversion administrator - or anyone with write
+permission on the subversion installation directory - can
+change the configuration.  Below is a complete configuration set
+with default values.
+.PP
+Debug value and where subversion looks for programs it
+needs:
+.br
+    DEBUG               = 0
+.br
+    SVNPATH             = "/usr/bin/svn"
+.br
+    SVNLOOK             = "/usr/bin/svnlook"
+.PP
+The remaining configuration variables comprise an N-Tuple
+and this set can be repeated as many times as wanted.
+.br
+    PROTECTED_PARENT    = "/tags"    # a literal path
+.br
+    PROTECTED_PRJDIRS   = "/tags/*"  # literal, glob, or blank
+.br
+    PRJDIR_CREATORS     = "*"        # or comma list, or blank
+.br
+    ARCHIVE_DIRECTORY   =  "Archive" # directory name
+.PP
+Do not configure directories with trailing slash characters,
+if you do they will simply be discarded anyway but to avoid
+confusion don't add them.
+.PP
+The configuration of the protected project directories
+variable, PROTECTED_PRJDIRS, must start with the exact same
+path as its associated protected parent configuration,
+namely PROTECTED_PARENT.  This is for security.  Also for
+security any instances of \fB/../\fR (or the like) found in
+the PROTECTED_PRJDIRS variable will be discarded.
+.PP
+Each TAG_FOLDER value must be unique and two(2) or more of
+them cannot be subdirectories of each other.   For example:
+.br
+    PROTECTED_PARENT    = "/tags"
+.br
+    PROTECTED_PARENT    = "/tags/foobar"
+will not be allowed.
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Show usage information and exit.
+.TP
+\fB\-\-debug[=n] or \-d[n]
+Increment or set the debug value.
+.PP
+If given this command line option should be first, otherwise
+you might get debug output at all, depending upon other
+command line options.  Note how the DEBUG=N setting works:
+.br
+.in +2
+PRODUCTION (\fBpre-commit\fR is running under subversion)
+.in +2
+.br
+Debug is 0
+.in +2
+This is normal, you will never see standard error messages
+at the client application unless they are attempts to
+modify protected directories (or some other \fBreal\fR
+error).
+.in -2
+.br
+Debug not 0
+.in +2
+Subversion will NEVER commit! Anything written to
+standard error (debug or real) will be seen by the
+client application.
+.in -2
+.in -2
+.br
+.in +2
+Command Line Interface
+.in +2
+.br
+Debug is 0
+.in +2
+Typically you will get no output.
+.in -2
+Debug not 0
+.in +2
+Messages will be sent to standard error. Usually, when
+running from the command line debugging is set to a
+non-zero value, try \fB\-\-debug=1\fR to start.
+.in -2
+.in -2
+.TP
+\fB\-\-parse[=<file>] or \-p[<file>]
+Parse the configuration file, default is
+\fBtagprotect.conf\fR, then exit.  Errors found in
+the configuration will be printed to standard error.
+If there are no errors you will get no output unless
+debug is greater than zero(0).  Typically used for
+testing/debugging an alternate configuration file before
+moving it into production.  NOTE: in production the
+configuration file cannot be changed, you can only do this
+on the command line.
+.TP
+\fB\-\-generate or \-g
+Generate a default configuration file, with comments,
+and write it to standard output.
+.TP
+\fB\-\-build or \-b
+Build (i.e. generate) a "precompiled" file from the
+configuration file, with comments, and write it to standard
+output.  This speeds up reading the configuration but
+is only needed by sites with a large large number of
+configurations - say 20 or more, your mileage may vary -
+and only if the server is old and slow.  If a precompiled
+configuration exists \fBpre-commit\fR will read it and
+ignore the configuration file.
+.TP
+\fB\-\-revert or \-r
+Opposite of, \fB\-\-build, write to standard output a
+configuration file from a previously built "precompiled"
+configuration file.
+.TP
+\fB\-\-version\fR
+Show the version number and exit
+.PD 1
+.RE
+.SH CAVEATS
+Debugging (see above) while in PRODUCTION is not really
+practical because all commits, regardless if they are
+protected or not, will be prevented.  This is a subversion
+feature and you can't get around that.  Still, debugging in
+PRODUCTION  works.  So you can do it but "good" commits will
+also be prevented.  You can't "fix" this feature of
+subversion, and it is actually a "good thing", IMHO.  If you
+can take PRODUCTION commits down for a bit and run your test
+cases you won't break anything.  Later the commits that
+failed can be committed again.  Commits, that are not
+protected, will be allowed as soon as you set debugging back
+to zero.
+.PP
+If, for whatever reason, you rename/move/remove the
+configuration file out of the hooks folder all commits will
+simply be allowed.  THIS MEANS THAT WITHOUT THE
+configuration file IT IS AS IF YOU NEVER INSTALLED THE
+SOFTWARE TO BEGIN WITH.  If this "feature" of tagprotect is
+not to your liking and you want the additional security then
+change this variable, at the top of the PERL library file:
+.br
+.in +2
+my $ALLOW_NO_CONFIG_FILE = 1;
+.in -2
+.br
+and tagprotect will error out if the  configuration file is
+missing, unreadable, etc.  In the future this might be the
+default behavior, depending on who complains about what!
+.SH SEE ALSO
+.BR svn (1),
+.BR svnlook (1),
+.br
+"Version Control with Subversion"
+at http://svnbook.red-bean.com/
+.br
+http://sourceforge.net/<TDB>
+.br
+https://github.com/ossCare/svnPlus.git
+.SH AUTHOR
+\fBpre-commit\fR was written by Joseph C. Pietras.
