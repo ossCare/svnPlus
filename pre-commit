@@ -35,7 +35,7 @@ require "$DIRE/tagprotect.pl";          # subroutines, read them in
 
 ################################################################################
 # ENTER: PARSE COMMAND LINE AND CONFIGURATION FILE
-my ( %RO_CLI ) = &ParseCLI($NAME, $CFGF, $PCFG);
+my ( %RO_CLI ) = &ParseCLI($NAME, $DIRE, $CFGF, $PCFG);
 my ( %ROconf ) = &ParseCFG($NAME, \%RO_CLI);  # some of $CFGF now in %RO_CLI
 # LEAVE: PARSE COMMAND LINE AND CONFIGURATION FILE
 ################################################################################

@@ -3,9 +3,9 @@ They are:
     pre-commit
     tagprotect.pl
     tagprotect.cfg
-    version.txt     -- only read in for command line usage
+    tagprotect.version.txt     -- only read in for command line usage
 
-If you all ready have a working "pre-commit" that you want to keep
+If you already have a working "pre-commit" that you want to keep
 it is recommended that just before your script does an "exit 0"
 (since if it already exits non-zero you don't need more checking
 to be done) you simply call this pre-commit program (which of course
@@ -50,6 +50,7 @@ all.
 5+  sub IsUnderProtectection
 6+  sub ParseCFG   Note: this drops to 1+ if script is running from command line
 6+  sub ParseCLI
+7+  sub ValidateSubFolderOrDie
 N/A sub ArtifactUnderProtectedFolder - Note: calls IsUnderProtectection which does debug
 N/A sub DebugLevel
 N/A sub FixPath # trim tailing / chars as need be from the config file
@@ -65,5 +66,4 @@ N/A sub PrtStr # string '$s' returned formatted when generating a config file
 N/A sub SayImpossible
 N/A sub SayNoDelete
 N/A sub ValidateCFGorDie
-N/A sub ValidateSubFolderOrDie
 N/A sub ZeroOneOrN # return 0, 1, or any N

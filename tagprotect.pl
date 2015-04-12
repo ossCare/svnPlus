@@ -9,8 +9,8 @@ my $VERSION_FILE = 'tagprotect.version.txt';
 
 # IF YOU RUN WITHOUT A CONFIGUATION FILE all COMMITS ARE ALLOWED ALL
 # TAG PROTECTION IS DISABLED.  IF THIS VARIABLE IS SET TO 0, THEN THE
-# PROGRAM WILL USE AN INTERNAl DEFAULT CONFIGURATION WHICH YOU CAN
-# "export" WITH THE --generate OPTION.
+# PROGRAM WILL NOT RUN WITHOUT A CONFIGURATION FILE.  YOU CAN export
+# A DEFAULT CONFIGURATION FILE WITH THE --generate OPTION.
 my $ALLOW_NO_CONFIG_FILE = 0;
 
 ################################################################################
@@ -433,7 +433,7 @@ sub DebugLevel
     return $level;
 } # DebugLevel
 
-sub FixPath # trim tailing / chars as need be from the config file
+sub FixPath # trim trailing / chars as need be from the config file
 {
     local $_ = shift; # path to be "fixed"
     if ( $_ ne "" and $_ ne "/" )
@@ -542,7 +542,7 @@ sub GetSvnCommit
     if ( $svnExit )
     {
         print STDERR "$Pname: \"$CLIref->{$LOOKKEY}\" failed to get \"$what\" (exit=$svnExit), re: $svnErrors\n";
-        print STDEDR "$Pname: command: >>tap " . join(" ", @tapCmd) . "\n";
+        print STDERR "$Pname: command: >>tap " . join(" ", @tapCmd) . "\n";
         print STDERR "$Pname: ABORTING - tell the subversion administrator.\n";
         exit $exitFatalErr;
     }
@@ -603,7 +603,7 @@ sub IsUnderProtectection
     else
     {
         # the protected (parent) folder is given literally like: "/tags"
-        # but can contain who knows what (even meta chars to be taken as is) 
+        # but can contain who knows what (even meta chars to be taken as is)
         $_ = int(length($pfolder));
         $leftside = substr($artifact, 0, $_);
         if ( $dbglvl > 5 )
@@ -652,6 +652,7 @@ sub LoadCFGTuple # put an N-Tuple into the Hash of hashes
     my $ouHashRef   = shift; # a reference to the "outer" hash this one will get the above one
     my $keyStr    = shift; # the string part of the key into the outer hash (key will be constructed)
     my $keyCnt    = shift; # the integer part of the key into the outer hash (key will be constructed)
+    my $dbglvl    = shift;
 
     my $key;                 # used to build the key from the string and the number
 
@@ -697,12 +698,12 @@ sub LoadCFGTuple # put an N-Tuple into the Hash of hashes
     $key =  &GenTupleKey($keyStr, $keyCnt);
     $ouHashRef->{ $key } =  { %$inHashRef }; # this allocates (copies) inner hash
 
-    &ValidateSubFolderOrDie($progName, $inHashRef->{$folderKey},
-        $inHashRef->{$subdirKey},
-        $cfg_File,
-        $inHashRef->{$linenoKey},
-        $folderKey, $subdirKey);
-
+    # the validator will return the input if it is ok, else it will silently clean it up
+    $inHashRef->{$subdirKey} = &ValidateSubFolderOrDie($progName, $inHashRef->{$folderKey},
+                                                       $inHashRef->{$subdirKey},
+                                                       $cfg_File,
+                                                       $inHashRef->{$linenoKey},
+                                                       $folderKey, $subdirKey, $dbglvl);
     $keyCnt++;
     return $keyCnt; # return one more than input
 } # put an N-Tuple into the Hash of hashes
@@ -752,21 +753,15 @@ sub ParseCFG # ENTER: parse config file
         if ( ! -f $CLIref->{$CONFKEY} )
         {
             print STDERR "ParseCFG: No configuration file \"$CLIref->{$CONFKEY}\"\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) );
-            if ( ! $ALLOW_NO_CONFIG_FILE )
+            if ($ALLOW_NO_CONFIG_FILE == 1)
             {
-                print STDERR "ParseCFG: $TAGpKEY = $cfg{$TAGpKEY}    NO CONFIG FILE, LOADING DEFAULT\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) ) ;
-                $cfg{$LINEKEY} = 0; # keep the line this was read in on
-                $cfg{$TAGpKEY} = $DEF_TAGFOLD;
-                $cfg{$SUBfKEY} = $DEF_SUBFOLD;
-                $cfg{$MAKEKEY} = $DEF_MAKESUB;
-                $cfg{$NAMEKEY} = $DEF_NAME_AF;
-                $TCNT = &LoadCFGTuple($Pname, $CLIref->{$CONFKEY},
-                    \%cfg, $TAGpKEY, $LINEKEY, $SUBfKEY, $MAKEKEY, $NAMEKEY,
-                    \%HoH, $TSTR, $TCNT);
+                print STDERR "ParseCFG: NO CONFIG FILE -- ALL COMMITS ALLOWED\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 0) );
             }
-            elsif ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) )
+            else
             {
-                print STDERR "ParseCFG: NO CONFIG FILE -- ALL COMMITS ALLOWED\n";
+                print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" does not exist, aborting.\n";
+                print STDERR "$Pname: tell the subversion administrator.\n";
+                exit $exitFatalErr;
             }
         }
         else
@@ -790,12 +785,12 @@ sub ParseCFG # ENTER: parse config file
                     $errors ++;
                     next;
                 }
-                $var =  $_;                 # init to input
-                $var =~ s/^\s*//;           # remove initial white space
-                $var =~ s/\s*=.*//;         # remove optional white space and equal sign
-                $val =  $_;                 # init to input
-                $val =~ s/\s*$var\s*=\s*//; # remove VAR= with optional white space
-                $val =~ s/\s*;\s*//;        # remove trailing ';' and white space, if any
+                $var =  $_;                                     # init to input
+                $var =~ s/^\s*//;                               # remove initial white space
+                $var =~ s/^([A-Za-z0-9_]+)\s*=.*/$1/;           # remove optional white space and equal sign
+                $val =  $_;                                     # init to input
+                $val =~ s/\s*$var\s*=\s*//;                     # remove VAR= with optional white space
+                $val =~ s/\s*;\s*//;                            # remove trailing ';' and white space, if any
                 $ch_1st = $val; $ch_1st =~ s/^(.)(.*)(.)\Z/$1/; # first char
                 $chLast = $val; $chLast =~ s/^(.)(.*)(.)\Z/$3/; # last char
                 if ( $CLIref->{$HDBGKEY} > ($dbgInc + 4) )
@@ -820,18 +815,16 @@ sub ParseCFG # ENTER: parse config file
                     $errors ++;
                     next;
                 }
-    
                 #else                                  { $val is good as it is }
-    
+
                 if ( $CLIref->{$HDBGKEY} > ($dbgInc + 3) )
                 {
                     print STDERR 'ParseCFG: $var="' . "$var" . '"' . "\n";
                     print STDERR 'ParseCFG: $val="' . "$val" . '"' . "\n";
                 }
-    
-                # ENTER: fix and split up the line just read in
+                # LEAVE: fix and split up the line just read in
                 ###############################################
-    
+
                 ############################################################
                 # ENTER: find the variable and store the value for "GLOBALS"
                 if    ( $var =~ m/^${VAR_H_DEBUG}\Z/i       )
@@ -868,10 +861,9 @@ sub ParseCFG # ENTER: parse config file
                     $CLIref->{$LOOKKEY}=$val;
                     print STDERR 'ParseCFG: $CLIref->{' . "$LOOKKEY" . '} = "' . $CLIref->{$LOOKKEY} . '"' . "\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) );
                 }
-    
                 # LEAVE: find the variable and store the value for "GLOBALS"
                 ############################################################
-    
+
                 ###########################################################
                 # ENTER: find the variable and store the value for "N-Tuple"
                 # can be given in _any_ order
@@ -879,27 +871,27 @@ sub ParseCFG # ENTER: parse config file
                 # 2) subfolder - can be BLANK means NOT ALLOWED
                 # 3) subfolder creators - can be BLANK means NO ONE
                 # 4) archive name - can be BLANK means NOT ALLOWED
-    
+
                 # 1)
                 elsif ( $var =~ m/^${VAR_TAGFOLD}\Z/i )
                 {
-    
+
                     # before processing this "$var" (a "protected tag folder" from the config file)
                     # if there is a "protected tag folder" outstanding, load it and its corresponding
                     # configuration values
                     if ( keys %cfg )
                     {
                         $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
-    
+
                         # we need to load this protected folder and all the
                         # members of the "tuple" into the configuration hash
                         print STDERR "ParseCFG: $TAGpKEY = $cfg{$TAGpKEY}    in the while loop\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
                         $TCNT = &LoadCFGTuple($Pname, $CLIref->{$CONFKEY},
                             \%cfg, $TAGpKEY, $LINEKEY, $SUBfKEY, $MAKEKEY, $NAMEKEY,
-                            \%HoH, $TSTR, $TCNT);
+                            \%HoH, $TSTR, $TCNT, $CLIref->{$HDBGKEY});
                         %cfg = (); # clear it to hold next parse
                     }
-    
+
                     # now process the just read in "protected tag folder"
                     $ch_1st = $val; $ch_1st =~ s/(.)(.+)/$1/; # first char
                     if ( $ch_1st ne "/" )
@@ -922,7 +914,7 @@ sub ParseCFG # ENTER: parse config file
                         next;
                     }
                 }
-    
+
                 # 2)
                 elsif ( $var =~ m/^${VAR_SUBFOLD}\Z/i   )
                 {
@@ -943,7 +935,7 @@ sub ParseCFG # ENTER: parse config file
                     }
                     $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
                 }
-    
+
                 # 3)
                 elsif ( $var =~ m/^${VAR_MAKESUB}\Z/i       )
                 {
@@ -951,7 +943,7 @@ sub ParseCFG # ENTER: parse config file
                     print STDERR "ParseCFG: $MAKEKEY = $cfg{$MAKEKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) );
                     $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
                 }
-    
+
                 # 4)
                 elsif ( $var =~ m/^${VAR_NAME_AF}\Z/i       )
                 {
@@ -969,11 +961,11 @@ sub ParseCFG # ENTER: parse config file
                     print STDERR "ParseCFG: $NAMEKEY = $cfg{$NAMEKEY}\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) );
                     $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
                 }
-    
+
                 # the "variable = value" pair is unrecognized
                 else
                 {
-    
+
                     # useless to output error message unless debug is enabled, or
                     # we are running from the command line, because otherwise
                     # subversion will just throw them away!
@@ -992,7 +984,6 @@ sub ParseCFG # ENTER: parse config file
                         $unknown ++;
                     }
                 }
-    
                 # LEAVE: find the variable and store the value for "N-Tuple"
                 # can be given in _any_ order
                 # 1) tag folder - cannot be BLANK
@@ -1002,14 +993,14 @@ sub ParseCFG # ENTER: parse config file
                 ############################################################
             }
             if ( $errors > 0 ) { exit $exitFatalErr; }
-    
+
             # there can be one left in the "cache"
             if ( keys %cfg )
             {
                 print STDERR "ParseCFG: $TAGpKEY = $cfg{$TAGpKEY}    AT END OF WHILE LOOP\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
                 $TCNT = &LoadCFGTuple($Pname, $CLIref->{$CONFKEY},
                     \%cfg, $TAGpKEY, $LINEKEY, $SUBfKEY, $MAKEKEY, $NAMEKEY,
-                    \%HoH, $TSTR, $TCNT);
+                    \%HoH, $TSTR, $TCNT, $CLIref->{$HDBGKEY});
             }
             close $cfgh;
         }
@@ -1050,7 +1041,7 @@ sub ParseCFG # ENTER: parse config file
     elsif ( $CLIref->{$BCFGKEY} > 0 )
     {
         my $Oline  = '%HoH = ('; # open the HASH of HASH lines
-        my $Sline  = '        '; # spaces 
+        my $Sline  = '        '; # spaces
         my $Cline  = '       );'; # open the HASH of HASH lines
         my $tStamp = strftime('%d %B %Y %T', localtime);
         my $user   = $ENV{'USER'}; $user = "UNKNOWN" if ($user eq "");
@@ -1072,7 +1063,7 @@ sub ParseCFG # ENTER: parse config file
 
         # output all the N-Tuples
         print STDOUT "$Oline\n"; # open HoH declaration line
-        $spch = '        '; 
+        $spch = '        ';
         for $tKey ( sort keys %HoH )
         {
             %cfg = %{ $HoH{$tKey} };
@@ -1116,6 +1107,7 @@ sub ParseCFG # ENTER: parse config file
 sub ParseCLI # ENTER: parse command line
 {
     my $Pname = shift;   # program name
+    my $Pdire = shift;   # program directory, usually ends with "hooks"
     my $Conff = shift;   # name of configuation file
     my $PreCf = shift;   # name of "pre-compiled" configuration file
     my %cli = ();        # the hash to load with values gotten from the
@@ -1205,7 +1197,6 @@ sub ParseCLI # ENTER: parse command line
         }
         #    LEAVE: options that cause a printout then exit
 
-
         elsif ( $ARGV[0] eq '--nodebug'       or $ARGV[0] eq '-D'  )
         {
             $cli{$CLIDKEY} = 1; # debug on command line, use it only
@@ -1254,7 +1245,6 @@ sub ParseCLI # ENTER: parse command line
             print STDERR "$Pname: ABORTING!\n";
             exit $exitFatalErr;
         }
-
         # LEAVE: fatal errors
 
         # ENTER: in PRODUCTION, under Subversion, only this block is ever invoked
@@ -1276,8 +1266,9 @@ sub ParseCLI # ENTER: parse command line
     {
         if ( $cli{$SVNREPO} eq "" or $cli{$SVNIDEN} eq "" )
         {
-            $cli{$SVNREPO} = "/no/path/not/running/under/subversion";
-            $cli{$SVNIDEN} = "NOT-UNDER-SUBVERION";
+            $cli{$SVNREPO} =  $Pdire; # this should now be the path to the repo, unless in development
+            $cli{$SVNREPO} =~ s@/hooks$@@;
+            $cli{$SVNIDEN} = "HEAD";  # this will be useless talking to subversion with svnlook
         }
     }
     return ( %cli );
@@ -1288,7 +1279,7 @@ sub PrintDefaultConfigAndExit
     my $headerOnly = shift;
     my $dbglvl     = shift; # passed in instead of passing $CLIref
     my $q = '"';
-    
+
     if ($dbglvl > 0)
     {
         if ( $headerOnly )
@@ -1852,8 +1843,10 @@ sub ValidateSubFolderOrDie
     my $lline = shift;   # current config file line
     my $p_Var = shift;   # config variable for the tag
     my $s_Var = shift;   # config variable for the sub folder
+    my $dbglvl = shift;
     my $leftP; # left part
     my $right; # right part
+    local $_;
 
     # a BLANK regex means that the tag folder does not allow _any_
     # project names, hey that's ok!  if so there is no need to test
@@ -1879,8 +1872,25 @@ sub ValidateSubFolderOrDie
             print STDERR "$progn: ABORTING - tell the subversion administrator.\n";
             exit $exitFatalErr;
         }
+
+        # clean up the subfolder "glob" (or it could be a literal path, we still clean it up)
+        $_ = $right;         # the "backslash" is not allowed, it can only lead to problems!
+        print STDERR "ValidateSubFolderOrDie: initial       \$_=$_\n" if ( $dbglvl > 8 );
+        s@\\@@g;             # remove all backslash chars - not allowed
+        print STDERR "ValidateSubFolderOrDie: rm backslash  \$_=$_\n" if ( $dbglvl > 8 );
+        s@/+@/@g;            # change multiple //* chars into just one /
+        print STDERR "ValidateSubFolderOrDie: rm single sep \$_=$_\n" if ( $dbglvl > 8 );
+        while ( m@/\.\//@ )  # /../ changed to / in a loop
+        {
+            s@/\.\./@/@g;    # remove it
+            s@/+@/@g;        # don't see how this could happen, but safety first
+        print STDERR "ValidateSubFolderOrDie: in clean loop \$_=$_\n" if ( $dbglvl > 8 );
+        }
+        print STDERR "ValidateSubFolderOrDie: done          \$_=$_\n" if ( $dbglvl > 8 );
+        $globc = $leftP . $_;         # the "backslash" is not allowed, it can only lead to problems!
     }
-    return;
+    print STDERR "ValidateSubFolderOrDie: returning $globc\n" if ( $dbglvl > 7 );
+    return $globc; # possible modified (cleaned up)
 } # ValidateSubFolderOrDie
 
 sub ZeroOneOrN # return 0, 1, or any N
