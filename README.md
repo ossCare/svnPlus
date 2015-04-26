@@ -20,3 +20,11 @@ version 2.1: added the logic to dump backslash `\' from subdirectories
                  PROTECTED_PRJDIR=/tags/../messing-with-you
 	     If this is not a good thing let us know and we can
 	     implement something different.
+
+version 2.2: fixed the issue of allowing each protected directory
+             to have its own Archive directory (or whatevery you
+             name it).
+             modified AllowCommit to check all Archive directories
+             instead of just the primary Archive directory or the
+             first fix would not work correctly.
+

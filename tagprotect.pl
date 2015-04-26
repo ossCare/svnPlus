@@ -112,7 +112,7 @@ my     $MAKEKEY = "$VAR_MAKESUB";       # CFG key, those who can create sub fold
 
 my $VAR_NAME_AF = "ARCHIVE_DIRECTORY";  # variable looked for in config file
 my $DEF_NAME_AF =  "Archive";           # default value if not in config
-my     $NAMEKEY = "$VAR_NAME_AF";       # CFG key, directory name of the archive folder
+my     $NAMEKEY = "$VAR_NAME_AF";       # CFG key, directory name of the archive folder(s)
 # LEAVE: HARD DEFAULTS FOR CONFIG FILE, VARIABLES SET IN THE CONFIG FILE, etc
 ################################################################################
 
@@ -126,6 +126,108 @@ my $TSTR = "Config_Tuple";  # string part of a N-Tuple key
 ############################# SUPPORT SUBROUTINES ##############################
 ################################################################################
 ###############################################################################{
+
+sub AddingArchiveFolder
+{
+    my $parent   = shift; # this does NOT end with SLASH, protected "parent" folder
+    my $allsub   = shift; # this does NOT end with SLASH, subfolders (as a path containing all the "parts" of the path)
+    my $archive  = shift; # name of the archive folder(s) for this configuration N-Tuple
+    my $artifact = shift; # may or may not end with SLASH - indicates files or folder
+    my $dbglvl   = shift; # passed in instead of passing $CLIref
+    my $r = 0;            # assume failure
+    my $sstr;             # subfolder string - used for parsing $allsub into the @suball array
+    my @suball;           # hold the parts of $allsub, $allsub can be a glob
+    my $glob;             # build up from the $allsub string split apart into @suball
+    my $dir = 0;          # assume artifact is a file
+    local $_;
+
+    $_ = $artifact;
+    $dir = 1 if ( m@/$@ );
+
+    if ( $dir )
+    {
+        $sstr = $allsub;           # start with the subfolder config value
+        print STDERR "AddingArchiveFolder: \$sstr=$sstr\n" if ( $dbglvl > 5 );
+        $sstr =~ s@^${parent}/@@;   # remove the parent and FIRST SLASH
+        @suball = split( '/', $sstr);
+        # walk the longest path to the shortest path
+        while ( @suball > 0 )
+        {
+            $glob  = $parent . "/" . join("/", @suball);
+            $glob .= "/" if ( !( $glob =~ '/$' ) );
+            $glob .= $archive . "/";
+            if ( match_glob( $glob, $artifact ) )
+            {
+                print STDERR "AddingArchiveFolder: \$glob=$glob matches $artifact\n" if ( $dbglvl > 4 );
+                $r = 1; # we have a match
+                last;
+            }
+            elsif ( $dbglvl > 2)
+            {
+                print STDERR "AddingArchiveFolder: \$glob=$glob DOES NOT match $artifact\n" if ( $dbglvl > 4 );
+            }
+            pop @suball;
+        }
+    }
+    elsif ( $dbglvl > 4 )
+    {
+        print STDERR "AddingArchiveFolder: $artifact is a FILE\n";
+    }
+
+    print STDERR "AddingArchiveFolder: RETURNED $r\t\$artifact=$artifact\n" if ( $dbglvl > 3 );
+    return $r;
+} # AddingArchiveFolder
+            
+sub AddingTooArchiveFolder
+{
+    my $parent   = shift; # this does NOT end with SLASH, protected "parent" folder
+    my $allsub   = shift; # this does NOT end with SLASH, subfolders (as a path containing all the "parts" of the path)
+    my $archive  = shift; # name of the archive folder(s) for this configuration N-Tuple
+    my $artifact = shift; # may or may not end with SLASH - indicates files or folder
+    my $dbglvl   = shift; # passed in instead of passing $CLIref
+    my $r = 0;            # assume failure
+    my $sstr;             # subfolder string - used for parsing $allsub into the @suball array
+    my @suball;           # hold the parts of $allsub, $allsub can be a glob
+    my $glob;             # build up from the $allsub string split apart into @suball
+    my $dir = 0;          # assume artifact is a file
+    local $_;
+
+    $_ = $artifact;
+    $dir = 1 if ( m@/$@ );
+
+    if ( $dir )
+    {
+        $sstr = $allsub;           # start with the subfolder config value
+        print STDERR "AddingTooArchiveFolder: \$sstr=$sstr\n" if ( $dbglvl > 5 );
+        $sstr =~ s@^${parent}/@@;   # remove the parent and FIRST SLASH
+        @suball = split( '/', $sstr);
+        # walk the longest path to the shortest path
+        while ( @suball > 0 )
+        {
+            $glob  = $parent . "/" . join("/", @suball);
+            $glob .= "/" if ( !( $glob =~ '/$' ) );
+            $glob .= $archive . "/?*/";
+            if ( match_glob( $glob, $artifact ) )
+            {
+                print STDERR "AddingTooArchiveFolder: \$glob=$glob matches $artifact\n" if ( $dbglvl > 4 );
+                $r = 1; # we have a match
+                last;
+            }
+            elsif ( $dbglvl > 2)
+            {
+                print STDERR "AddingTooArchiveFolder: \$glob=$glob DOES NOT match $artifact\n" if ( $dbglvl > 4 );
+            }
+            pop @suball;
+        }
+    }
+    elsif ( $dbglvl > 4 )
+    {
+        print STDERR "AddingTooArchiveFolder: $artifact is a FILE\n";
+    }
+
+    print STDERR "AddingTooArchiveFolder: RETURNED $r\t\$artifact=$artifact\n" if ( $dbglvl > 3 );
+    return $r;
+} # AddingTooArchiveFolder
 
 sub AddingSubFolder
 {
@@ -152,7 +254,8 @@ sub AddingSubFolder
         # walk the longest path to the shortest path
         while ( @suball > 0 )
         {
-            $glob = $parent . "/" . join("/", @suball) . "/";
+            $glob  = $parent . "/" . join("/", @suball);
+            $glob .= "/" if ( !( $glob =~ '/$' ) );
             if ( match_glob( $glob, $artifact ) )
             {
                 print STDERR "AddingSubFolder: \$glob=$glob matches $artifact\n" if ( $dbglvl > 4 );
@@ -330,7 +433,7 @@ sub AllowCommit
             $commit = &TheAddIsAllowed($Pname, $CLIref, $CFGref, $author, \@add); # returns 0 or 1
         }
 
-        # See if attempting an add and a delete, only do this if moving a tag to the archive folder
+        # See if attempting an add and a delete, only do this if moving a tag to an archive folder
         elsif ( int(@add) != 0 && int(@del) != 0 )
         {
             print STDERR "AllowCommit: ADD AND DELETE\n" if ( $CLIref->{$HDBGKEY} > 1 );
@@ -777,7 +880,7 @@ sub ParseCFG # ENTER: parse config file
                 s/\s*$//; # remove trailing white space
                 next if $_ eq "";
                 print STDERR "ParseCFG: RAW: $_\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 4) );
-    
+
                 if ( ! m/=/ )
                 {
                     print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
@@ -1547,18 +1650,18 @@ sub TheAddIsAllowed
         elsif ( $sfold ne "" and $afold ne "" ) { $glob = $sfold . '/' . $afold . "/?*";   } # yes subfolder, yes archive folder name
         if ( $glob ne "" )
         {
-            print STDERR "TheAddIsAllowed: if ( match_glob( $glob, $artifact ) ) is the test to see if adding to archive folder\n" if ( $CLIref->{$HDBGKEY} > 5 );
-            if ( match_glob( $glob, $artifact ) )
+            print STDERR "TheAddIsAllowed: if (AddingTooArchiveFolder($pfold, $sfold, $afold, $artifact, $CLIref->{$HDBGKEY})) is the test to see if adding to an archive folder\n" if ( $CLIref->{$HDBGKEY} > 5 );
+            if ( &AddingTooArchiveFolder($pfold, $sfold, $afold, $artifact, $CLIref->{$HDBGKEY}) == 1 )
             {
-                print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS UNDER THE ARCHIVE FOLDER\n" if ( $CLIref->{$HDBGKEY} > 4 );
-                print STDERR "$Pname: you can only move existing tags to the archive folder\n";
-                print STDERR "$Pname: commit failed, you cannot add anything to the archive folder is not allowed!\n";
+                print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS UNDER AN ARCHIVE FOLDER\n" if ( $CLIref->{$HDBGKEY} > 4 );
+                print STDERR "$Pname: you can only move existing tags to an archive folder\n";
+                print STDERR "$Pname: commit failed, you cannot add anything to an archive folder is not allowed!\n";
                 print STDERR "$Pname: commit failed on: $artifact\n";
                 $commit = 0;
                 last;
             }
         }
-        print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING TO THE ARCHIVE FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
+        print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING TO AN ARCHIVE FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
 
         # 2) attempting to add to a tag?
         if    ( $sfold eq ""                    ) { $glob = $pfold . "/?*"; } # no subfolder
@@ -1574,27 +1677,23 @@ sub TheAddIsAllowed
         {
             print STDERR "TheAddIsAllowed: KEEP TESTING -> THIS IS NOT PART OF A NEW TAG $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
             # 3) attempting to add the _Achive folder_ itself?
-            if    ( $sfold eq "" and $afold eq "" ) { $glob = "";                            } # no subfolder, no archive folder name
-            elsif ( $sfold eq "" and $afold ne "" ) { $glob = $pfold . '/' . $afold . "/";   } # no subfolder, yes archive folder name
-            elsif ( $sfold ne "" and $afold eq "" ) { $glob = "";                            } # yes subfolder, not arhive folder name
-            elsif ( $sfold ne "" and $afold ne "" ) { $glob = $sfold . '/' . $afold . "/";   } # yes subfolder, yes archive folder name
-            if ( $glob ne "" )
+            if ( $afold ne "" )
             {
-                print STDERR "TheAddIsAllowed: if ( match_glob( $glob, $artifact ) ) is the test to see if adding the archive folder\n" if ( $CLIref->{$HDBGKEY} > 5 );
-                if ( match_glob( $glob, $artifact ) )
+                print STDERR "TheAddIsAllowed: AddingArchiveFolder($pfold, $sfold, $afold, $artifact, $CLIref->{$HDBGKEY}) is the test to see if adding an archive folder\n" if ( $CLIref->{$HDBGKEY} > 5 );
+                if ( &AddingArchiveFolder($pfold, $sfold, $afold, $artifact, $CLIref->{$HDBGKEY}) == 1 )
                 {
-                    print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS THE ARCHIVE FOLDER\n" if ( $CLIref->{$HDBGKEY} > 2 );
-                    $commit = &Authorized($Pname, $author, $amake, $artifact, 'add the archive folder', $CLIref->{$HDBGKEY});
+                    print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS AN ARCHIVE FOLDER\n" if ( $CLIref->{$HDBGKEY} > 2 );
+                    $commit = &Authorized($Pname, $author, $amake, $artifact, 'add an archive folder', $CLIref->{$HDBGKEY});
                     last if ( $commit == 0 );
                     next;
                 }
             }
-            print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING THE ARCHIVE FOLDER ITSELF $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
+            print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING AN ARCHIVE FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
 
             # 4) attempting to add a project folder?
             if ( &AddingSubFolder($pfold, $sfold, $artifact, $CLIref->{$HDBGKEY}) == 1 )
             {
-                print STDERR "TheAddIsAllowed: stop TESTING -> THIS IS A A NEW PROJECT SUB FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
+                print STDERR "TheAddIsAllowed: stop TESTING -> THIS IS A NEW PROJECT SUB FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
                 $commit = &Authorized($Pname, $author, $amake, $artifact, 'add a project (or sub) folder', $CLIref->{$HDBGKEY});
                 last if ( $commit == 0 );
                 next;
@@ -1646,7 +1745,7 @@ sub TheMoveIsAllowed
     my $addPath;          # path from the "add" array
     my $addPathNoArch;    # path from the "add" array with next to last folder with "Arhive name" removed
     my $addRef;           # reference for add array
-    my $archive;          # name of the archive folder for this N-Tuple
+    my $archive;          # name of an archive folder for this N-Tuple
     my $check1st;         # path to check before putting a path into @pureAdd
     my $commit = 1;       # assume OK to commit
     my $count;            # of elements in @pureAdd
@@ -1682,7 +1781,7 @@ sub TheMoveIsAllowed
                 print STDERR "TheMoveIsAllowed: ADD cfgkey $addKey PATH with archive removed $addPathNoArch\n" if ( $CLIref->{$HDBGKEY} > 2 );
                 $delNdx = -1; # impossible value
                 $count = 0;
-                # walk each of the artifacts to be deleted and look to see if the thing added is related to the artifact being deleted by the archive folder name
+                # walk each of the artifacts to be deleted and look to see if the thing added is related to the artifact being deleted by an archive folder name
                 for $delRef ( @{ $DELref } )
                 {
                     ($delKey, $delPath) = ( @{ $delRef } );
