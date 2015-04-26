@@ -28,3 +28,5 @@ version 2.2: fixed the issue of allowing each protected directory
              instead of just the primary Archive directory or the
              first fix would not work correctly.
 
+version 2.3: tech debt changes only (changed the use of "folder"
+             to "directory").

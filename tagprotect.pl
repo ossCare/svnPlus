@@ -2,8 +2,9 @@
 ################################################################################
 #  Author:      Joseph C. Pietras - Joseph.Pietras@gmail.com
 #  License:     GNU GENERAL PUBLIC LICENSE Version 2
-#  GitHub:      https://github.com/ossCare/svnPlus.git
-#  SourceForge: TBD
+#  GitHub:      svn co https://github.com/ossCare/svnPlus
+#               git https://github.com/ossCare/svnPlus.git
+#  SourceForge: git clone git://git.code.sf.net/p/svnplus/code svnplus-code
 ################################################################################
 my $VERSION_FILE = 'tagprotect.version.txt';
 
@@ -22,9 +23,9 @@ my $ALLOW_NO_CONFIG_FILE = 0;
 #### other data values.  These other data values either default or are      ####
 #### parsed from the configuration file.  Despite this they are kept in the ####
 #### "CLI" hash and not the configuration CFG hash of hashes.  The hash of  ####
-#### hashes contains only data regarding which subversion "root" folders    ####
-#### are protected tag folders and the associated configuration for that    ####
-#### "tag" folder.                                                          ####
+#### hashes contains only data regarding which subversion "root" direct-    ####
+#### ories are protected tag directories and the associated configuration   ####
+#### for that "tag" directory.                                              ####
 ################################################################################
 # this file does not, normally, exit ever, unless:
 # FATAL ERROR
@@ -93,26 +94,26 @@ my     $SVNIDEN = 'svn_tID';            # CLI key, subversion transaction key
 my     $SVNREPO = 'svnRepo';            # CLI key, path to svn repository
 
 # CFG
-my $VAR_TAGFOLD = "PROTECTED_PARENT";   # variable looked for in config file
-my $DEF_TAGFOLD = "/tags";              # default value if not in config
-my     $TAGpKEY = "$VAR_TAGFOLD";       # CFG key, key for this N-Tuple, must be a real path
+my $VAR_TAGDIRE = "PROTECTED_PARENT";   # variable looked for in config file
+my $DEF_TAGDIRE = "/tags";              # default value if not in config
+my     $TAGpKEY = "$VAR_TAGDIRE";       # CFG key, key for this N-Tuple, must be a real path
 
 # these        (missing 3 lines)
 #       not
 #           needed for line no
-my     $LINEKEY = "ProtectLineNo";      # CFG key, line number in the config file of this tag folder
+my     $LINEKEY = "ProtectLineNo";      # CFG key, line number in the config file of this tag directory
 
-my $VAR_SUBFOLD = "PROTECTED_PRJDIRS";  # variable looked for in config file
-my $DEF_SUBFOLD = "${DEF_TAGFOLD}/*";   # default value if not in config
-my     $SUBfKEY = "$VAR_SUBFOLD";       # CFG key, subfolders will be "globbed"
+my $VAR_SUBDIRE = "PROTECTED_PRJDIRS";  # variable looked for in config file
+my $DEF_SUBDIRE = "${DEF_TAGDIRE}/*";   # default value if not in config
+my     $SUBfKEY = "$VAR_SUBDIRE";       # CFG key, subdirectories will be "globbed"
 
 my $VAR_MAKESUB = "PRJDIR_CREATORS";    # variable looked for in config file
 my $DEF_MAKESUB =  "*";                 # default value if not in config
-my     $MAKEKEY = "$VAR_MAKESUB";       # CFG key, those who can create sub folders
+my     $MAKEKEY = "$VAR_MAKESUB";       # CFG key, those who can create sub directories
 
 my $VAR_NAME_AF = "ARCHIVE_DIRECTORY";  # variable looked for in config file
 my $DEF_NAME_AF =  "Archive";           # default value if not in config
-my     $NAMEKEY = "$VAR_NAME_AF";       # CFG key, directory name of the archive folder(s)
+my     $NAMEKEY = "$VAR_NAME_AF";       # CFG key, directory name of the archive directory(s)
 # LEAVE: HARD DEFAULTS FOR CONFIG FILE, VARIABLES SET IN THE CONFIG FILE, etc
 ################################################################################
 
@@ -127,15 +128,15 @@ my $TSTR = "Config_Tuple";  # string part of a N-Tuple key
 ################################################################################
 ###############################################################################{
 
-sub AddingArchiveFolder
+sub AddingArchiveDir
 {
-    my $parent   = shift; # this does NOT end with SLASH, protected "parent" folder
-    my $allsub   = shift; # this does NOT end with SLASH, subfolders (as a path containing all the "parts" of the path)
-    my $archive  = shift; # name of the archive folder(s) for this configuration N-Tuple
-    my $artifact = shift; # may or may not end with SLASH - indicates files or folder
+    my $parent   = shift; # this does NOT end with SLASH, protected "parent" directory
+    my $allsub   = shift; # this does NOT end with SLASH, subdirectories (as a path containing all the "parts" of the path)
+    my $archive  = shift; # name of the archive directory(s) for this configuration N-Tuple
+    my $artifact = shift; # may or may not end with SLASH - indicates files or directory
     my $dbglvl   = shift; # passed in instead of passing $CLIref
     my $r = 0;            # assume failure
-    my $sstr;             # subfolder string - used for parsing $allsub into the @suball array
+    my $sstr;             # subdirectory string - used for parsing $allsub into the @suball array
     my @suball;           # hold the parts of $allsub, $allsub can be a glob
     my $glob;             # build up from the $allsub string split apart into @suball
     my $dir = 0;          # assume artifact is a file
@@ -146,8 +147,8 @@ sub AddingArchiveFolder
 
     if ( $dir )
     {
-        $sstr = $allsub;           # start with the subfolder config value
-        print STDERR "AddingArchiveFolder: \$sstr=$sstr\n" if ( $dbglvl > 5 );
+        $sstr = $allsub;           # start with the subdirectory config value
+        print STDERR "AddingArchiveDir: \$sstr=$sstr\n" if ( $dbglvl > 5 );
         $sstr =~ s@^${parent}/@@;   # remove the parent and FIRST SLASH
         @suball = split( '/', $sstr);
         # walk the longest path to the shortest path
@@ -158,35 +159,35 @@ sub AddingArchiveFolder
             $glob .= $archive . "/";
             if ( match_glob( $glob, $artifact ) )
             {
-                print STDERR "AddingArchiveFolder: \$glob=$glob matches $artifact\n" if ( $dbglvl > 4 );
+                print STDERR "AddingArchiveDir: \$glob=$glob matches $artifact\n" if ( $dbglvl > 4 );
                 $r = 1; # we have a match
                 last;
             }
             elsif ( $dbglvl > 2)
             {
-                print STDERR "AddingArchiveFolder: \$glob=$glob DOES NOT match $artifact\n" if ( $dbglvl > 4 );
+                print STDERR "AddingArchiveDir: \$glob=$glob DOES NOT match $artifact\n" if ( $dbglvl > 4 );
             }
             pop @suball;
         }
     }
     elsif ( $dbglvl > 4 )
     {
-        print STDERR "AddingArchiveFolder: $artifact is a FILE\n";
+        print STDERR "AddingArchiveDir: $artifact is a FILE\n";
     }
 
-    print STDERR "AddingArchiveFolder: RETURNED $r\t\$artifact=$artifact\n" if ( $dbglvl > 3 );
+    print STDERR "AddingArchiveDir: RETURNED $r\t\$artifact=$artifact\n" if ( $dbglvl > 3 );
     return $r;
-} # AddingArchiveFolder
+} # AddingArchiveDir
             
-sub AddingTooArchiveFolder
+sub AddingTooArchiveDir
 {
-    my $parent   = shift; # this does NOT end with SLASH, protected "parent" folder
-    my $allsub   = shift; # this does NOT end with SLASH, subfolders (as a path containing all the "parts" of the path)
-    my $archive  = shift; # name of the archive folder(s) for this configuration N-Tuple
-    my $artifact = shift; # may or may not end with SLASH - indicates files or folder
+    my $parent   = shift; # this does NOT end with SLASH, protected "parent" directory
+    my $allsub   = shift; # this does NOT end with SLASH, subdirectories (as a path containing all the "parts" of the path)
+    my $archive  = shift; # name of the archive directory(s) for this configuration N-Tuple
+    my $artifact = shift; # may or may not end with SLASH - indicates files or directory
     my $dbglvl   = shift; # passed in instead of passing $CLIref
     my $r = 0;            # assume failure
-    my $sstr;             # subfolder string - used for parsing $allsub into the @suball array
+    my $sstr;             # subdirectory string - used for parsing $allsub into the @suball array
     my @suball;           # hold the parts of $allsub, $allsub can be a glob
     my $glob;             # build up from the $allsub string split apart into @suball
     my $dir = 0;          # assume artifact is a file
@@ -197,8 +198,8 @@ sub AddingTooArchiveFolder
 
     if ( $dir )
     {
-        $sstr = $allsub;           # start with the subfolder config value
-        print STDERR "AddingTooArchiveFolder: \$sstr=$sstr\n" if ( $dbglvl > 5 );
+        $sstr = $allsub;           # start with the subdirectory config value
+        print STDERR "AddingTooArchiveDir: \$sstr=$sstr\n" if ( $dbglvl > 5 );
         $sstr =~ s@^${parent}/@@;   # remove the parent and FIRST SLASH
         @suball = split( '/', $sstr);
         # walk the longest path to the shortest path
@@ -209,34 +210,34 @@ sub AddingTooArchiveFolder
             $glob .= $archive . "/?*/";
             if ( match_glob( $glob, $artifact ) )
             {
-                print STDERR "AddingTooArchiveFolder: \$glob=$glob matches $artifact\n" if ( $dbglvl > 4 );
+                print STDERR "AddingTooArchiveDir: \$glob=$glob matches $artifact\n" if ( $dbglvl > 4 );
                 $r = 1; # we have a match
                 last;
             }
             elsif ( $dbglvl > 2)
             {
-                print STDERR "AddingTooArchiveFolder: \$glob=$glob DOES NOT match $artifact\n" if ( $dbglvl > 4 );
+                print STDERR "AddingTooArchiveDir: \$glob=$glob DOES NOT match $artifact\n" if ( $dbglvl > 4 );
             }
             pop @suball;
         }
     }
     elsif ( $dbglvl > 4 )
     {
-        print STDERR "AddingTooArchiveFolder: $artifact is a FILE\n";
+        print STDERR "AddingTooArchiveDir: $artifact is a FILE\n";
     }
 
-    print STDERR "AddingTooArchiveFolder: RETURNED $r\t\$artifact=$artifact\n" if ( $dbglvl > 3 );
+    print STDERR "AddingTooArchiveDir: RETURNED $r\t\$artifact=$artifact\n" if ( $dbglvl > 3 );
     return $r;
-} # AddingTooArchiveFolder
+} # AddingTooArchiveDir
 
-sub AddingSubFolder
+sub AddingSubDir
 {
-    my $parent   = shift; # this does NOT end with SLASH, protected "parent" folder
-    my $allsub   = shift; # this does NOT end with SLASH, subfolders (as a path containing all the "parts" of the path)
-    my $artifact = shift; # may or may not end with SLASH - indicates files or folder
+    my $parent   = shift; # this does NOT end with SLASH, protected "parent" directory
+    my $allsub   = shift; # this does NOT end with SLASH, subdirectory(s) (as a path containing all the "parts" of the path)
+    my $artifact = shift; # may or may not end with SLASH - indicates files or directory
     my $dbglvl   = shift; # passed in instead of passing $CLIref
     my $r = 0;            # assume failure
-    my $sstr;             # subfolder string - used for parsing $allsub into the @suball array
+    my $sstr;             # subdirectory string - used for parsing $allsub into the @suball array
     my @suball;           # hold the parts of $allsub, $allsub can be a glob
     my $glob;             # build up from the $allsub string split apart into @suball
     my $dir = 0;          # assume artifact is a file
@@ -247,8 +248,8 @@ sub AddingSubFolder
 
     if ( $dir )
     {
-        $sstr = $allsub;           # start with the subfolder config value
-        print STDERR "AddingSubFolder: \$sstr=$sstr\n" if ( $dbglvl > 5 );
+        $sstr = $allsub;           # start with the subdirectory config value
+        print STDERR "AddingSubDir: \$sstr=$sstr\n" if ( $dbglvl > 5 );
         $sstr =~ s@^${parent}/@@;   # remove the parent and FIRST SLASH
         @suball = split( '/', $sstr);
         # walk the longest path to the shortest path
@@ -258,25 +259,25 @@ sub AddingSubFolder
             $glob .= "/" if ( !( $glob =~ '/$' ) );
             if ( match_glob( $glob, $artifact ) )
             {
-                print STDERR "AddingSubFolder: \$glob=$glob matches $artifact\n" if ( $dbglvl > 4 );
+                print STDERR "AddingSubDir: \$glob=$glob matches $artifact\n" if ( $dbglvl > 4 );
                 $r = 1; # we have a match
                 last;
             }
             elsif ( $dbglvl > 2)
             {
-                print STDERR "AddingSubFolder: \$glob=$glob DOES NOT match $artifact\n" if ( $dbglvl > 4 );
+                print STDERR "AddingSubDir: \$glob=$glob DOES NOT match $artifact\n" if ( $dbglvl > 4 );
             }
             pop @suball;
         }
     }
     elsif ( $dbglvl > 4 )
     {
-        print STDERR "AddingSubFolder: $artifact is a FILE\n";
+        print STDERR "AddingSubDir: $artifact is a FILE\n";
     }
 
-    print STDERR "AddingSubFolder: RETURNED $r\t\$artifact=$artifact\n" if ( $dbglvl > 3 );
+    print STDERR "AddingSubDir: RETURNED $r\t\$artifact=$artifact\n" if ( $dbglvl > 3 );
     return $r;
-} # AddingSubFolder
+} # AddingSubDir
 
 #### FROM: http://svnbook.red-bean.com/nightly/en/svn.ref.svnlook.c.changed.html
 ####
@@ -309,7 +310,7 @@ sub AllowCommit
     my $Pname  = shift;   # name of calling program
     my $CLIref = shift;   # reference to command line hash
     my $CFGref = shift;   # reference to configuration hash
-    my $CMdata = shift;   # reference to committed files/folders data array
+    my $CMdata = shift;   # reference to committed files/directory(s) data array
     my $author = shift;   # committer of this change
     my $artifact;         # the thing being commmitted
     my $change;           # a D or an A
@@ -342,7 +343,7 @@ sub AllowCommit
             print STDERR 'AllowCommit: $artifact=' . "$artifact\n";
         }
 
-        ($isProt, $tupleKey) = &ArtifactUnderProtectedFolder($CFGref, $artifact, $CLIref->{$HDBGKEY});
+        ($isProt, $tupleKey) = &ArtifactUnderProtectedDir($CFGref, $artifact, $CLIref->{$HDBGKEY});
         if ( $CLIref->{$HDBGKEY} > 1 )
         {
             print STDERR 'AllowCommit: $tupleKey=' . "$tupleKey\n" if ( $CLIref->{$HDBGKEY} > 2 );
@@ -353,7 +354,7 @@ sub AllowCommit
         {
             if ( $change eq 'U' or $change eq '_U' or $change eq 'UU'  )
             {
-                print STDERR "$Pname: commit failed, modifications to protected folders or folders is not allowed!\n";
+                print STDERR "$Pname: commit failed, modifications to protected directories or files is not allowed!\n";
                 print STDERR "$Pname: commit failed on: $CMdata->[$itmp]\n";
                 $commit = 0;
                 last;
@@ -433,7 +434,7 @@ sub AllowCommit
             $commit = &TheAddIsAllowed($Pname, $CLIref, $CFGref, $author, \@add); # returns 0 or 1
         }
 
-        # See if attempting an add and a delete, only do this if moving a tag to an archive folder
+        # See if attempting an add and a delete, only do this if moving a tag to an archive directory
         elsif ( int(@add) != 0 && int(@del) != 0 )
         {
             print STDERR "AllowCommit: ADD AND DELETE\n" if ( $CLIref->{$HDBGKEY} > 1 );
@@ -452,12 +453,12 @@ sub AllowCommit
 
 # each artifact has to be tested to see if it is under protection
 # which means looping through all configurations
-sub ArtifactUnderProtectedFolder
+sub ArtifactUnderProtectedDir
 {
     my $CFGref   = shift;
     my $artifact = shift;
     my $dbglvl   = shift; # passed in instead of passing $CLIref
-    my $parent;           # protected folder
+    my $parent;           # protected directory
     my $tupleKey;
     my $returnKey = "";
     my $isProtected = 0; # assume not protected
@@ -473,7 +474,7 @@ sub ArtifactUnderProtectedFolder
         }
     }
     return ($isProtected, $returnKey);
-} # ArtifactUnderProtectedFolder
+} # ArtifactUnderProtectedDir
 
 sub Authorized
 {
@@ -557,8 +558,8 @@ sub FmtStr # create a format string used when generating a config file
     $l = length($VAR_H_DEBUG); $r = $l if ( $l > $r);
     $l = length($VAR_SVNLOOK); $r = $l if ( $l > $r);
     $l = length($VAR_SVNPATH); $r = $l if ( $l > $r);
-    $l = length($VAR_TAGFOLD); $r = $l if ( $l > $r);
-    $l = length($VAR_SUBFOLD); $r = $l if ( $l > $r);
+    $l = length($VAR_TAGDIRE); $r = $l if ( $l > $r);
+    $l = length($VAR_SUBDIRE); $r = $l if ( $l > $r);
     $l = length($VAR_MAKESUB); $r = $l if ( $l > $r);
     $l = length($VAR_NAME_AF); $r = $l if ( $l > $r);
     $f = '%-' . $r . "s";
@@ -622,7 +623,7 @@ sub GetSvnCommit
     my $svnErrors;      # STDERR of command SVNLOOK - any errors
     my $svnChanged;     # STDOUT of command SVNLOOK - commit data
     my $svnExit;        # exit value of command SVNLOOK
-    my @Changed;        # $svnChanged split into an array of files/folders
+    my @Changed;        # $svnChanged split into an array of files/directories
     my $itmp = 0;       # index into @Changed
     local $_;           # regex'ing
     my $what = "changed";
@@ -654,7 +655,7 @@ sub GetSvnCommit
     # now put insert a "/" character as the 5th character on each of the array
     # elements.  svnlook does not do that and it is needed for subsequent
     # regexp matches.
-    print STDERR "GetSvnCommit: ENTER: list of $what folders and files\n" if ( $CLIref->{$HDBGKEY} > 3 );
+    print STDERR "GetSvnCommit: ENTER: list of $what directories and files\n" if ( $CLIref->{$HDBGKEY} > 3 );
     while ( $itmp < int(@Changed) )
     {
         print STDERR "GetSvnCommit: BEFORE $Changed[$itmp]\n" if ( $CLIref->{$HDBGKEY} > 4 );
@@ -666,8 +667,8 @@ sub GetSvnCommit
         print STDERR "GetSvnCommit: AFTER  $Changed[$itmp]\n" if ( $CLIref->{$HDBGKEY} > 3 );
         $itmp ++;
     }
-    print STDERR "GetSvnCommit: LEAVE: list of $what folders and files\n" if ( $CLIref->{$HDBGKEY} > 3 );
-    return @Changed; # $svnChanged split into an array of files/folders
+    print STDERR "GetSvnCommit: LEAVE: list of $what directories and files\n" if ( $CLIref->{$HDBGKEY} > 3 );
+    return @Changed; # $svnChanged split into an array of files/directories
 } # GetSvnCommit
 
 sub GetVersion
@@ -690,31 +691,31 @@ sub GetVersion
 
 sub IsUnderProtectection
 {
-    my $pfolder  = shift; # protected (parent) folder
+    my $pDir     = shift; # protected (parent) directories
     my $artifact = shift; # to be added
     my $dbglvl   = shift; # passed in instead of passing $CLIref
-    my $leftside;         # left side of $artifact, length of $pfolder
+    my $leftside;         # left side of $artifact, length of $pDir
     my $r;                # returned value
     local $_;
 
-    if ( $pfolder eq "/" )
+    if ( $pDir eq "/" )
     {
         # THIS IS CODED THIS WAY IN CASE "/" IS DISALLOWED IN FUTURE (perhaps it should be?)
         $r  = 1;   # this will always match everything!
-        print STDERR "IsUnderProtection: protected folder is \"/\" it always matches everyting\n" if ( $dbglvl > 5 );
+        print STDERR "IsUnderProtection: protected directories is \"/\" it always matches everything\n" if ( $dbglvl > 5 );
     }
     else
     {
-        # the protected (parent) folder is given literally like: "/tags"
+        # the protected (parent) directory is given literally like: "/tags"
         # but can contain who knows what (even meta chars to be taken as is)
-        $_ = int(length($pfolder));
+        $_ = int(length($pDir));
         $leftside = substr($artifact, 0, $_);
         if ( $dbglvl > 5 )
         {
             print STDERR 'IsUnderProtection: $artifact:  ' . $artifact . ")\n" if ( $dbglvl > 6 );
-            print STDERR 'IsUnderProtection: checking regexp match (' . $leftside . ' eq ' . $pfolder . ")\t";
+            print STDERR 'IsUnderProtection: checking regexp match (' . $leftside . ' eq ' . $pDir . ")\t";
         }
-        if ( $leftside eq $pfolder )
+        if ( $leftside eq $pDir )
         {
             print STDERR "MATCH\n" if ( $dbglvl > 5 );
             $r = 1;
@@ -744,7 +745,7 @@ sub LoadCFGTuple # put an N-Tuple into the Hash of hashes
     # this is what this subroutine "loads", i.e. the 1st is given and
     # we default the next 3 from the 3 above if they are not there
     my $inHashRef   = shift; # a reference to the "inner" hash
-    my $folderKey = shift; # key into above hash to see if we got it or must default
+    my $directKey = shift; # key into above hash to see if we got it or must default
     my $linenoKey = shift; # key into above hash to see if we got it or must default
     my $subdirKey = shift; # key into above hash to see if we got it or must default
     my $creatsKey = shift; # key into above hash to see if we got it or must default
@@ -759,10 +760,10 @@ sub LoadCFGTuple # put an N-Tuple into the Hash of hashes
 
     my $key;                 # used to build the key from the string and the number
 
-    # check that incoming (inner) hash has a folder in it to be protected
+    # check that incoming (inner) hash has a directory in it to be protected
     if (    ( ! exists $inHashRef->{$archnmKey} )
         ||  ( ! exists $inHashRef->{$creatsKey} )
-        ||  ( ! exists $inHashRef->{$folderKey} )
+        ||  ( ! exists $inHashRef->{$directKey} )
         ||  ( ! exists $inHashRef->{$linenoKey} )
         ||  ( ! exists $inHashRef->{$subdirKey} ) )
     {
@@ -771,9 +772,9 @@ sub LoadCFGTuple # put an N-Tuple into the Hash of hashes
         $inHashRef->{$linenoKey}  = 0 if ( ! exists $inHashRef->{$linenoKey} );
 
         print STDERR "$progName: See configuration file: $cfg_File\n";
-        print STDERR "$progName: The value of $VAR_TAGFOLD does not exist for the configuration set.\n"
-          if ( ! exists $inHashRef->{$folderKey} );
-        print STDERR "$progName: The value of $VAR_SUBFOLD does not exist for the configuration set!\n"
+        print STDERR "$progName: The value of $VAR_TAGDIRE does not exist for the configuration set.\n"
+          if ( ! exists $inHashRef->{$directKey} );
+        print STDERR "$progName: The value of $VAR_SUBDIRE does not exist for the configuration set!\n"
           if ( ! exists $inHashRef->{$subdirKey} );
         print STDERR "$progName: The value of $VAR_NAME_AF does not exist for the configuration set!\n"
           if ( ! exists $inHashRef->{$archnmKey} );
@@ -784,13 +785,13 @@ sub LoadCFGTuple # put an N-Tuple into the Hash of hashes
         print STDERR "$progName: ABORTING - tell the subversion administrator.\n";
         exit $exitFatalErr;
     }
-    elsif ( $inHashRef->{$folderKey} eq "" )
+    elsif ( $inHashRef->{$directKey} eq "" )
     {
 
         # give it bogus value if it has no value
         $inHashRef->{$linenoKey}  = 0 if ( ! exists $inHashRef->{$linenoKey} );
         print STDERR "$progName: See configuration file: $cfg_File\n";
-        print STDERR "$progName: The value of $VAR_TAGFOLD is blank.\n";
+        print STDERR "$progName: The value of $VAR_TAGDIRE is blank.\n";
         print STDERR "$progName: Around line number: $inHashRef->{$linenoKey}\n";
         print STDERR "$progName: Failure in subroutine LoadCFGTuple.\n";
         print STDERR "$progName: ABORTING - tell the subversion administrator.\n";
@@ -802,11 +803,11 @@ sub LoadCFGTuple # put an N-Tuple into the Hash of hashes
     $ouHashRef->{ $key } =  { %$inHashRef }; # this allocates (copies) inner hash
 
     # the validator will return the input if it is ok, else it will silently clean it up
-    $inHashRef->{$subdirKey} = &ValidateSubFolderOrDie($progName, $inHashRef->{$folderKey},
-                                                       $inHashRef->{$subdirKey},
-                                                       $cfg_File,
-                                                       $inHashRef->{$linenoKey},
-                                                       $folderKey, $subdirKey, $dbglvl);
+    $inHashRef->{$subdirKey} = &ValidateSubDirOrDie($progName, $inHashRef->{$directKey},
+                                                    $inHashRef->{$subdirKey},
+                                                    $cfg_File,
+                                                    $inHashRef->{$linenoKey},
+                                                    $directKey, $subdirKey, $dbglvl);
     $keyCnt++;
     return $keyCnt; # return one more than input
 } # put an N-Tuple into the Hash of hashes
@@ -823,7 +824,7 @@ sub ParseCFG # ENTER: parse config file
     my $errors  =  0;
     my $unknown =  0;
     my $itmp    =  0;
-    my %cfg     = ();     # "one config" for a protected folder
+    my %cfg     = ();     # "one config" for a protected directory
     # this _must_ be "our" (not "my") because of reading from pre-compiled file
     our %HoH    = ();     # hash of hashes - holds all configs
     my $cfgh;             # open config handle
@@ -970,23 +971,23 @@ sub ParseCFG # ENTER: parse config file
                 ###########################################################
                 # ENTER: find the variable and store the value for "N-Tuple"
                 # can be given in _any_ order
-                # 1) tag folder - cannot be BLANK
-                # 2) subfolder - can be BLANK means NOT ALLOWED
-                # 3) subfolder creators - can be BLANK means NO ONE
+                # 1) tag directory - cannot be BLANK
+                # 2) subdirectories - can be BLANK means NOT ALLOWED
+                # 3) subdirectory creators - can be BLANK means NO ONE
                 # 4) archive name - can be BLANK means NOT ALLOWED
 
                 # 1)
-                elsif ( $var =~ m/^${VAR_TAGFOLD}\Z/i )
+                elsif ( $var =~ m/^${VAR_TAGDIRE}\Z/i )
                 {
 
-                    # before processing this "$var" (a "protected tag folder" from the config file)
-                    # if there is a "protected tag folder" outstanding, load it and its corresponding
+                    # before processing this "$var" (a "protected tag directory" from the config file)
+                    # if there is a "protected tag directory" outstanding, load it and its corresponding
                     # configuration values
                     if ( keys %cfg )
                     {
                         $cfg{$LINEKEY} = $. if ( ! exists $cfg{$LINEKEY} );
 
-                        # we need to load this protected folder and all the
+                        # we need to load this protected directory and all the
                         # members of the "tuple" into the configuration hash
                         print STDERR "ParseCFG: $TAGpKEY = $cfg{$TAGpKEY}    in the while loop\n" if ( $CLIref->{$HDBGKEY} > ($dbgInc + 1) );
                         $TCNT = &LoadCFGTuple($Pname, $CLIref->{$CONFKEY},
@@ -995,12 +996,12 @@ sub ParseCFG # ENTER: parse config file
                         %cfg = (); # clear it to hold next parse
                     }
 
-                    # now process the just read in "protected tag folder"
+                    # now process the just read in "protected tag directory"
                     $ch_1st = $val; $ch_1st =~ s/(.)(.+)/$1/; # first char
                     if ( $ch_1st ne "/" )
                     {
                         print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
-                        print STDERR "$Pname: line $. >>$_<< tag folder to protect does not start with slash(/)!\n";
+                        print STDERR "$Pname: line $. >>$_<< tag directory to protect does not start with slash(/)!\n";
                         $errors ++;
                         next;
                     }
@@ -1019,17 +1020,17 @@ sub ParseCFG # ENTER: parse config file
                 }
 
                 # 2)
-                elsif ( $var =~ m/^${VAR_SUBFOLD}\Z/i   )
+                elsif ( $var =~ m/^${VAR_SUBDIRE}\Z/i   )
                 {
                     $val = &FixPath($val); # can end up being BLANK, that's ok
-                    # if $val is BLANK it means the next tags folder to be protected
-                    # will have NO subfolders
+                    # if $val is BLANK it means the next tags directory to be protected
+                    # will have NO subdirectories
                     $cfg{$SUBfKEY} = $val;
                     if ( $CLIref->{$HDBGKEY} > ($dbgInc + 2) )
                     {
                         if ( $val eq "" )
                         {
-                            print STDERR "ParseCFG: $SUBfKEY = has been cleared, configuation to have no subfolders.\n";
+                            print STDERR "ParseCFG: $SUBfKEY = has been cleared, configuation to have no subdirectories.\n";
                         }
                         else
                         {
@@ -1056,7 +1057,7 @@ sub ParseCFG # ENTER: parse config file
                     if ( $val =~ m@/@ )
                     {
                         print STDERR "$Pname: configuration file \"$CLIref->{$CONFKEY}\" is misconfigured.\n" if ( $errors == 0 );
-                        print STDERR "$Pname: line $. >>$_<< archive folder name contains a slash(/) character, that is not allowed!\n";
+                        print STDERR "$Pname: line $. >>$_<< archive directory name contains a slash(/) character, that is not allowed!\n";
                         $errors ++;
                         next;
                     }
@@ -1089,9 +1090,9 @@ sub ParseCFG # ENTER: parse config file
                 }
                 # LEAVE: find the variable and store the value for "N-Tuple"
                 # can be given in _any_ order
-                # 1) tag folder - cannot be BLANK
-                # 2) subfolder - can be BLANK means NOT ALLOWED
-                # 3) subfolder creators - can be BLANK means NO ONE
+                # 1) tag directory - cannot be BLANK
+                # 2) subdirectory - can be BLANK means NOT ALLOWED
+                # 3) subdirectory creators - can be BLANK means NO ONE
                 # 4) archive name - can be BLANK means NOT ALLOWED
                 ############################################################
             }
@@ -1133,8 +1134,8 @@ sub ParseCFG # ENTER: parse config file
             print STDOUT "\n\n" if ( $_ > 0 );
             $_ = 1;
             %cfg = %{ $HoH{$tKey} };
-            print STDOUT &PrtStr($VAR_TAGFOLD) . " = ${q}$cfg{$TAGpKEY}${q}\n";
-            print STDOUT &PrtStr($VAR_SUBFOLD) . " = ${q}$cfg{$SUBfKEY}${q}\n";
+            print STDOUT &PrtStr($VAR_TAGDIRE) . " = ${q}$cfg{$TAGpKEY}${q}\n";
+            print STDOUT &PrtStr($VAR_SUBDIRE) . " = ${q}$cfg{$SUBfKEY}${q}\n";
             print STDOUT &PrtStr($VAR_MAKESUB) . " = ${q}$cfg{$MAKEKEY}${q}\n";
             print STDOUT &PrtStr($VAR_NAME_AF) . " = ${q}$cfg{$NAMEKEY}${q}\n";
         }
@@ -1197,10 +1198,10 @@ sub ParseCFG # ENTER: parse config file
             print STDERR "$tKey = {";
             print STDERR "   # started on line $cfg{$LINEKEY}" if ( exists $cfg{$LINEKEY} );
             print STDERR "\n";
-            print STDERR "$spch       $VAR_TAGFOLD=" . '"' . $HoH{$tKey}{$TAGpKEY} . '"' . " # literal only\n";
-            print STDERR "$spch       $VAR_SUBFOLD=" . '"' . $HoH{$tKey}{$SUBfKEY} . '"' . " # literal, a glob, or blank\n";
-            print STDERR "$spch       $VAR_MAKESUB=" . '"' . $HoH{$tKey}{$MAKEKEY} . '"' . " # authorized committers - can create subfolders/subprojects\n";
-            print STDERR "$spch       $VAR_NAME_AF=" . '"' . $HoH{$tKey}{$NAMEKEY} . '"' . " # authorised committers only - name of folder for archiving\n";
+            print STDERR "$spch       $VAR_TAGDIRE=" . '"' . $HoH{$tKey}{$TAGpKEY} . '"' . " # literal only\n";
+            print STDERR "$spch       $VAR_SUBDIRE=" . '"' . $HoH{$tKey}{$SUBfKEY} . '"' . " # literal, a glob, or blank\n";
+            print STDERR "$spch       $VAR_MAKESUB=" . '"' . $HoH{$tKey}{$MAKEKEY} . '"' . " # authorized committers - can create subdirectories/subprojects\n";
+            print STDERR "$spch       $VAR_NAME_AF=" . '"' . $HoH{$tKey}{$NAMEKEY} . '"' . " # authorised committers only - name of directory for archiving\n";
             print STDERR "$spch   }\n";
         }
     }
@@ -1396,7 +1397,7 @@ sub PrintDefaultConfigAndExit
     }
     print STDOUT "#\n";
     print STDOUT "#  The parsing script will build an 'N-Tuple' from each\n";
-    print STDOUT "#  '${VAR_TAGFOLD}' variable.\n";
+    print STDOUT "#  '${VAR_TAGDIRE}' variable.\n";
     print STDOUT "#\n";
     print STDOUT "# Recognized variable/value pairs are:\n";
     print STDOUT "#   These are for debugging and the svnlook path\n";
@@ -1404,9 +1405,9 @@ sub PrintDefaultConfigAndExit
     print STDOUT "#          ${VAR_SVNPATH}\t\t= path to svn\n";
     print STDOUT "#          ${VAR_SVNLOOK}\t\t= path to svnlook\n";
     print STDOUT "#   These make up an N-Tuple\n";
-    print STDOUT "#          ${VAR_TAGFOLD}\t\t= /<path>\n";
-    print STDOUT "# e.g.:    ${VAR_SUBFOLD}\t= /<path>/*\n";
-    print STDOUT "# or e.g.: ${VAR_SUBFOLD}\t= /<path>/*/*\n";
+    print STDOUT "#          ${VAR_TAGDIRE}\t\t= /<path>\n";
+    print STDOUT "# e.g.:    ${VAR_SUBDIRE}\t= /<path>/*\n";
+    print STDOUT "# or e.g.: ${VAR_SUBDIRE}\t= /<path>/*/*\n";
     print STDOUT "#          ${VAR_MAKESUB}\t= '*' or '<user>, <user>, ...'\n";
     print STDOUT "#          ${VAR_NAME_AF}\t= <name>\n";
     print STDOUT "\n";
@@ -1416,12 +1417,12 @@ sub PrintDefaultConfigAndExit
     print STDOUT &PrtStr($VAR_SVNLOOK) . " = ${q}$DEF_SVNLOOK${q}\n";
     print STDOUT "\n";
     print STDOUT "### These comprise an N-Tuple, can be repeated as many times as wanted,\n";
-    print STDOUT "### but each ${VAR_TAGFOLD} value must be unique.   It is not allowed to\n";
-    print STDOUT "### try to configure the same folder twice (or more)!\n";
+    print STDOUT "### but each ${VAR_TAGDIRE} value must be unique.   It is not allowed to\n";
+    print STDOUT "### try to configure the same directory twice (or more)!\n";
     if ( $headerOnly == 0 )
     {
-        print STDOUT &PrtStr($VAR_TAGFOLD) . " = ${q}$DEF_TAGFOLD${q}\n";
-        print STDOUT &PrtStr($VAR_SUBFOLD) . " = ${q}$DEF_SUBFOLD${q}\n";
+        print STDOUT &PrtStr($VAR_TAGDIRE) . " = ${q}$DEF_TAGDIRE${q}\n";
+        print STDOUT &PrtStr($VAR_SUBDIRE) . " = ${q}$DEF_SUBDIRE${q}\n";
         print STDOUT &PrtStr($VAR_MAKESUB) . " = ${q}$DEF_MAKESUB${q}\n";
         print STDOUT &PrtStr($VAR_NAME_AF) . " = ${q}$DEF_NAME_AF${q}\n";
         exit $exitUserHelp; # only exit if doing the whole thing
@@ -1549,19 +1550,19 @@ sub SayNoDelete
 {
     my $name = shift;
     my $what = shift;
-    print STDERR "$name: commit failed, delete of protected folders is not allowed!\n";
+    print STDERR "$name: commit failed, delete of protected directories is not allowed!\n";
     print STDERR "$name: commit failed on: $what\n";
     return 0;
 } # SayNoDelete
 
-sub SimplyAllow # ENTER: determine if we can simply allow this commit or of a protected folder is part of the commit
+sub SimplyAllow # ENTER: determine if we can simply allow this commit or of a protected directory is part of the commit
 {
     my $CLIref = shift;   # reference to command line hash
     my $CFGref = shift;   # reference to configuration hash
     my $CMdata = shift;   # reference to changed directories array
     my $justAllow = 1;    # assume most commits are not tags
     my $itmp = -1;        # iterate the incoming array of commits
-    my $pfolder;          # protected folder
+    my $pDir;             # protected directory
     my $tupleKey;         # N-Tuple keys found in the configuation ref
     local $_;             # artifact to be committed, changed or whatever
 
@@ -1576,9 +1577,9 @@ sub SimplyAllow # ENTER: determine if we can simply allow this commit or of a pr
 
         for $tupleKey ( keys %{ $CFGref } )
         {
-            $pfolder = $CFGref->{$tupleKey}{$TAGpKEY};  # protected folder
-            # if the artifact is under a protected folder we cannot simply allow
-            if ( &IsUnderProtectection($pfolder, $_, $CLIref->{$HDBGKEY}) == 1 )
+            $pDir = $CFGref->{$tupleKey}{$TAGpKEY};  # protected directory
+            # if the artifact is under a protected directory we cannot simply allow
+            if ( &IsUnderProtectection($pDir, $_, $CLIref->{$HDBGKEY}) == 1 )
             {
                 print STDERR "SimplyAllow: artifact under protection is: $_\n" if ( $CLIref->{$HDBGKEY} > 1 );
                 $justAllow = 0; # nope, we gotta work!
@@ -1589,7 +1590,7 @@ sub SimplyAllow # ENTER: determine if we can simply allow this commit or of a pr
     }
     print STDERR "SimplyAllow: \$justAllow=$justAllow RETURNED\n" if ( $CLIref->{$HDBGKEY} > 1 );
     return $justAllow;
-} # SimplyAllow: LEAVE: determine if we can simply allow this commit or of a protected folder is part of the commit
+} # SimplyAllow: LEAVE: determine if we can simply allow this commit or of a protected directory is part of the commit
 
 sub TheAddIsAllowed
 {
@@ -1598,13 +1599,13 @@ sub TheAddIsAllowed
     my $CFGref = shift;   # reference to configuration hash
     my $author = shift;   # committer of this change
     my $ADDref = shift;   # array reference to the "array of stuff to add"
-    my $afold;            # archive folder name
-    my $amake;            # users that can create new project folders
+    my $aDire;            # archive directory name
+    my $amake;            # users that can create new project directories
     my $artifact;         # user wants to add
     my $commit = 1;       # assume OK to commit
     my $arrayRef;         # pointer to the inner array
-    my $pfold;            # protected (parent) folder
-    my $sfold;            # subfolder under $pfold, can be BLANK
+    my $pDire;            # protected (parent) directory
+    my $sDire;            # subdirectory under $pDire, can be BLANK
     my $tupKey;           # N-Tuple key used to find data in $CFGref
     my $glob;             # a "glob" pattern to check for matches
 
@@ -1619,53 +1620,53 @@ sub TheAddIsAllowed
     for $arrayRef ( @{ $ADDref } ) # we know all these are protected and to be added
     {
         ($tupKey, $artifact) = ( @{ $arrayRef } );
-        $pfold = $CFGref->{$tupKey}{$TAGpKEY}; # protected folder
-        $amake = $CFGref->{$tupKey}{$MAKEKEY}; # authorised to make subfolders
-        $afold = $CFGref->{$tupKey}{$NAMEKEY}; # archive folder name
-        $sfold = $CFGref->{$tupKey}{$SUBfKEY}; # subfolder name - glob is allowed here
+        $pDire = $CFGref->{$tupKey}{$TAGpKEY}; # protected directory
+        $amake = $CFGref->{$tupKey}{$MAKEKEY}; # authorised to make subdirectories
+        $aDire = $CFGref->{$tupKey}{$NAMEKEY}; # archive directory name
+        $sDire = $CFGref->{$tupKey}{$SUBfKEY}; # subdirectory name - glob is allowed here
 
         if ( $CLIref->{$HDBGKEY} > 4 )
         {
             print STDERR 'TheAddIsAllowed: $tupKey'   . "\t= $tupKey\n";
             print STDERR 'TheAddIsAllowed: $artifact' . "\t= $artifact\n";
-            print STDERR 'TheAddIsAllowed: $pfold'    . "\t\t= $pfold\n";
-            print STDERR 'TheAddIsAllowed: $afold'    . "\t\t= $afold\n";
+            print STDERR 'TheAddIsAllowed: $pDire'    . "\t\t= $pDire\n";
+            print STDERR 'TheAddIsAllowed: $aDire'    . "\t\t= $aDire\n";
             print STDERR 'TheAddIsAllowed: $amake'    . "\t\t= $amake\n";
-            print STDERR 'TheAddIsAllowed: $sfold'    . "\t\t= $sfold\n";
+            print STDERR 'TheAddIsAllowed: $sDire'    . "\t\t= $sDire\n";
         }
 
         # IN ORDER TO ENSURE CORRECTLY FIGURING OUT WHAT THE USER IS DOING TEST IN THIS ORDER:
-        # 1) attempting to add to the Achive folder?
+        # 1) attempting to add to the Achive directory?
         # 2) attempting to add to a tag?
-        # 3) attempting to add _the_ Achive folder itself?
-        # 4) attempting to add a project folder?
-        # 5) attempting to add the protected folder _itself_ ?
-        # 6) attempting to add a folder? <= this should never happen, above takes care of it
+        # 3) attempting to add _the_ Achive directory itself?
+        # 4) attempting to add a project directory?
+        # 5) attempting to add the protected directory _itself_ ?
+        # 6) attempting to add a directory? <= this should never happen, above takes care of it
         # 7) attempting to add a file that is not part of a tag?
 
         # 1) attempting to add to the Achive?
-        if    ( $sfold eq "" and $afold eq "" ) { $glob = "";                              } # no subfolder, no archive folder name
-        elsif ( $sfold eq "" and $afold ne "" ) { $glob = $pfold . '/' . $afold . "/?*";   } # no subfolder, yes archive folder name
-        elsif ( $sfold ne "" and $afold eq "" ) { $glob = "";                              } # yes subfolder, not arhive folder name
-        elsif ( $sfold ne "" and $afold ne "" ) { $glob = $sfold . '/' . $afold . "/?*";   } # yes subfolder, yes archive folder name
+        if    ( $sDire eq "" and $aDire eq "" ) { $glob = "";                              } # no subdirectory, no archive directory name
+        elsif ( $sDire eq "" and $aDire ne "" ) { $glob = $pDire . '/' . $aDire . "/?*";   } # no subdirectory, yes archive directory name
+        elsif ( $sDire ne "" and $aDire eq "" ) { $glob = "";                              } # yes subdirectory, not arhive directory name
+        elsif ( $sDire ne "" and $aDire ne "" ) { $glob = $sDire . '/' . $aDire . "/?*";   } # yes subdirectory, yes archive directory name
         if ( $glob ne "" )
         {
-            print STDERR "TheAddIsAllowed: if (AddingTooArchiveFolder($pfold, $sfold, $afold, $artifact, $CLIref->{$HDBGKEY})) is the test to see if adding to an archive folder\n" if ( $CLIref->{$HDBGKEY} > 5 );
-            if ( &AddingTooArchiveFolder($pfold, $sfold, $afold, $artifact, $CLIref->{$HDBGKEY}) == 1 )
+            print STDERR "TheAddIsAllowed: if (AddingTooArchiveDir($pDire, $sDire, $aDire, $artifact, $CLIref->{$HDBGKEY})) is the test to see if adding to an archive directory\n" if ( $CLIref->{$HDBGKEY} > 5 );
+            if ( &AddingTooArchiveDir($pDire, $sDire, $aDire, $artifact, $CLIref->{$HDBGKEY}) == 1 )
             {
-                print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS UNDER AN ARCHIVE FOLDER\n" if ( $CLIref->{$HDBGKEY} > 4 );
-                print STDERR "$Pname: you can only move existing tags to an archive folder\n";
-                print STDERR "$Pname: commit failed, you cannot add anything to an archive folder is not allowed!\n";
+                print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS UNDER AN ARCHIVE DIRECTORY\n" if ( $CLIref->{$HDBGKEY} > 4 );
+                print STDERR "$Pname: you can only move existing tags to an archive directory\n";
+                print STDERR "$Pname: commit failed, you cannot add anything to an archive directory is not allowed!\n";
                 print STDERR "$Pname: commit failed on: $artifact\n";
                 $commit = 0;
                 last;
             }
         }
-        print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING TO AN ARCHIVE FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
+        print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING TO AN ARCHIVE DIRECTORY $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
 
         # 2) attempting to add to a tag?
-        if    ( $sfold eq ""                    ) { $glob = $pfold . "/?*"; } # no subfolder
-        else                                      { $glob = $sfold . "/?*"; }
+        if    ( $sDire eq ""                    ) { $glob = $pDire . "/?*"; } # no subdirectory
+        else                                      { $glob = $sDire . "/?*"; }
         print STDERR "TheAddIsAllowed: if ( match_glob( $glob, $artifact ) ) is the test to see if adding a new tag\n" if ( $CLIref->{$HDBGKEY} > 5 );
         if ( match_glob( $glob, $artifact ) )
         {
@@ -1676,51 +1677,51 @@ sub TheAddIsAllowed
         else
         {
             print STDERR "TheAddIsAllowed: KEEP TESTING -> THIS IS NOT PART OF A NEW TAG $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
-            # 3) attempting to add the _Achive folder_ itself?
-            if ( $afold ne "" )
+            # 3) attempting to add the _Achive directory_ itself?
+            if ( $aDire ne "" )
             {
-                print STDERR "TheAddIsAllowed: AddingArchiveFolder($pfold, $sfold, $afold, $artifact, $CLIref->{$HDBGKEY}) is the test to see if adding an archive folder\n" if ( $CLIref->{$HDBGKEY} > 5 );
-                if ( &AddingArchiveFolder($pfold, $sfold, $afold, $artifact, $CLIref->{$HDBGKEY}) == 1 )
+                print STDERR "TheAddIsAllowed: AddingArchiveDir($pDire, $sDire, $aDire, $artifact, $CLIref->{$HDBGKEY}) is the test to see if adding an archive directory\n" if ( $CLIref->{$HDBGKEY} > 5 );
+                if ( &AddingArchiveDir($pDire, $sDire, $aDire, $artifact, $CLIref->{$HDBGKEY}) == 1 )
                 {
-                    print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS AN ARCHIVE FOLDER\n" if ( $CLIref->{$HDBGKEY} > 2 );
-                    $commit = &Authorized($Pname, $author, $amake, $artifact, 'add an archive folder', $CLIref->{$HDBGKEY});
+                    print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS AN ARCHIVE DIRECTORY\n" if ( $CLIref->{$HDBGKEY} > 2 );
+                    $commit = &Authorized($Pname, $author, $amake, $artifact, 'add an archive directory', $CLIref->{$HDBGKEY});
                     last if ( $commit == 0 );
                     next;
                 }
             }
-            print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING AN ARCHIVE FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
+            print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING AN ARCHIVE DIRECTORY $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
 
-            # 4) attempting to add a project folder?
-            if ( &AddingSubFolder($pfold, $sfold, $artifact, $CLIref->{$HDBGKEY}) == 1 )
+            # 4) attempting to add a project directory?
+            if ( &AddingSubDir($pDire, $sDire, $artifact, $CLIref->{$HDBGKEY}) == 1 )
             {
-                print STDERR "TheAddIsAllowed: stop TESTING -> THIS IS A NEW PROJECT SUB FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
-                $commit = &Authorized($Pname, $author, $amake, $artifact, 'add a project (or sub) folder', $CLIref->{$HDBGKEY});
+                print STDERR "TheAddIsAllowed: stop TESTING -> THIS IS A NEW PROJECT SUB DIRECTORY $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
+                $commit = &Authorized($Pname, $author, $amake, $artifact, 'add a project (or sub) directory', $CLIref->{$HDBGKEY});
                 last if ( $commit == 0 );
                 next;
             }
-            print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING A PROJECT FOLDER $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
+            print STDERR "TheAddIsAllowed: KEEP TESTING -> NOT ADDING A PROJECT DIRECTORY $artifact\n" if ( $CLIref->{$HDBGKEY} > 2 );
 
-            # 5) attempting to add the protected folder _itself_ ?
-            if ( "$pfold/" eq $artifact ) # trying to add the parent folder itself
+            # 5) attempting to add the protected directory _itself_ ?
+            if ( "$pDire/" eq $artifact ) # trying to add the parent directory itself
             {
-                print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS THE PROTECTED FOLDER\n" if ( $CLIref->{$HDBGKEY} > 2 );
-                $commit = &Authorized($Pname, $author, $amake, $artifact, 'create the protected folder', $CLIref->{$HDBGKEY});
+                print STDERR 'TheAddIsAllowed: $artifact=' . "$artifact IS THE PROTECTED DIRECTORY\n" if ( $CLIref->{$HDBGKEY} > 2 );
+                $commit = &Authorized($Pname, $author, $amake, $artifact, 'create the protected directory', $CLIref->{$HDBGKEY});
                 last if ( $commit == 0 );
                 next;
             }
             else # attempting to add a file instead of a tag
             {
-                print STDERR "TheAddIsAllowed: stop TESTING -> CANNOT ADD ARBITRARY FOLDER OR FILE TO A PROTECTED FOLDER artifact=$artifact\n" if ( $CLIref->{$HDBGKEY} > 4 );
+                print STDERR "TheAddIsAllowed: stop TESTING -> CANNOT ADD ARBITRARY DIRECTORY OR FILE TO A PROTECTED DIRECTORY artifact=$artifact\n" if ( $CLIref->{$HDBGKEY} > 4 );
                 print STDERR "$Pname: you can only only add new tags\n";
                 if ( $artifact =~ m@/$@ )
                 {
-                    # 6) attempting to add a folder? <= this should never happen, above takes care of it
-                    print STDERR "$Pname: commit failed, you cannot add a folder!\n";
+                    # 6) attempting to add a directory? <= this should never happen, above takes care of it
+                    print STDERR "$Pname: commit failed, you cannot add a directory!\n";
                 }
                 else
                 {
                     # 7) attempting to add a file that is not part of a tag?
-                    print STDERR "$Pname: commit failed, you cannot add a file to a protected folder!\n";
+                    print STDERR "$Pname: commit failed, you cannot add a file to a protected directory!\n";
                 }
                 print STDERR "$Pname: commit failed on: $artifact\n";
                 $commit = 0;
@@ -1737,15 +1738,15 @@ sub TheMoveIsAllowed
     my $Pname  = shift;   # name of calling program
     my $CLIref = shift;   # reference to command line hash
     my $CFGref = shift;   # reference to configuration hash
-    my $CMdata = shift;   # reference to committed files/folders data array
+    my $CMdata = shift;   # reference to committed files/directories data array
     my $author = shift;   # committer of this change
     my $ADDref = shift;   # reference to the array of stuff to add
     my $DELref = shift;   # reference to the array of stuff to delete
     my $addKey;           # N-Tuple key from the "add" array
     my $addPath;          # path from the "add" array
-    my $addPathNoArch;    # path from the "add" array with next to last folder with "Arhive name" removed
+    my $addPathNoArch;    # path from the "add" array with next to last directory with "Arhive name" removed
     my $addRef;           # reference for add array
-    my $archive;          # name of an archive folder for this N-Tuple
+    my $archive;          # name of an archive directory for this N-Tuple
     my $check1st;         # path to check before putting a path into @pureAdd
     my $commit = 1;       # assume OK to commit
     my $count;            # of elements in @pureAdd
@@ -1769,19 +1770,19 @@ sub TheMoveIsAllowed
         if ( $archive eq "" )
         {
             $justAdd = 1;
-            print STDERR "TheMoveIsAllowed: NO ARCHIVE FOLDER - just add\n" if ( $CLIref->{$HDBGKEY} > 2 );
+            print STDERR "TheMoveIsAllowed: NO ARCHIVE DIRECTORY - just add\n" if ( $CLIref->{$HDBGKEY} > 2 );
         }
         else
         {
             $justAdd = 0;
-            if ( $addPath =~ m@^(/.+)/${archive}/([^/]+/)$@ ) # does path have "archive folder name" in it as next to last folder
+            if ( $addPath =~ m@^(/.+)/${archive}/([^/]+/)$@ ) # does path have "archive directory name" in it as next to last directory
             {
                 print STDERR "TheMoveIsAllowed: ADD cfgkey $addKey PATH does have archive $addPath\n" if ( $CLIref->{$HDBGKEY} > 3 );
                 $addPathNoArch = "$1/$2";
                 print STDERR "TheMoveIsAllowed: ADD cfgkey $addKey PATH with archive removed $addPathNoArch\n" if ( $CLIref->{$HDBGKEY} > 2 );
                 $delNdx = -1; # impossible value
                 $count = 0;
-                # walk each of the artifacts to be deleted and look to see if the thing added is related to the artifact being deleted by an archive folder name
+                # walk each of the artifacts to be deleted and look to see if the thing added is related to the artifact being deleted by an archive directory name
                 for $delRef ( @{ $DELref } )
                 {
                     ($delKey, $delPath) = ( @{ $delRef } );
@@ -1811,7 +1812,7 @@ sub TheMoveIsAllowed
                     print STDERR "TheMoveIsAllowed: delNdx is nagative: $delNdx, will not SPLICE it out of the delete array\n" if ( $CLIref->{$HDBGKEY} > 4 );
                 }
             }
-            else # found a path to add but it does not have "archive folder name" as next to last folder
+            else # found a path to add but it does not have "archive directory name" as next to last directory
             {
                 $justAdd = 1;
                 print STDERR "TheMoveIsAllowed: NO ARCHIVE MATCH - just add\n" if ( $CLIref->{$HDBGKEY} > 4 );
@@ -1866,8 +1867,8 @@ sub TheMoveIsAllowed
 } # TheMoveIsAllowed
 
 # if the (now parsed into PERL hash of hash) configuration file has the _identical_
-# tag folder to protect repeated (i.e. given more that once) error out and die.
-# a tag folder to protect can only be given once.
+# tag directory to protect repeated (i.e. given more that once) error out and die.
+# a tag directory to protect can only be given once.
 sub ValidateCFGorDie
 {
     my $Pname   = shift;   # name of calling program
@@ -1875,26 +1876,26 @@ sub ValidateCFGorDie
     my $HoHstr  = shift;   # hash of has key string
     my $HoHcnt  = shift;   # hash of has key count
     my $HoHref  = shift;   # ref to hash of hash
-    my $folderKey = shift; # key to find protected folder in the innner hash
+    my $directKey = shift; # key to find protected directory in the innner hash
     my $linenoKey = shift; # key to find line number contained in the inner has
     #
     my $count_1 = 0;       # index for outer count
     my $count_2 = 0;       # index for inner count
     my $key_1;             # to loop through keys
     my $key_2;             # to loop through keys
-    my $protected_1;       # 1st protected folder to compare with
-    my $protected_2;       # 2nd protected folder to compare with
+    my $protected_1;       # 1st protected directory to compare with
+    my $protected_2;       # 2nd protected directory to compare with
     my $error = 0;         # error count
 
     while ( $count_1 < $HoHcnt )
     {
         $key_1 = &GenTupleKey($HoHstr, $count_1);
-        $protected_1 = $HoHref->{$key_1}{$folderKey};  # data to compare
+        $protected_1 = $HoHref->{$key_1}{$directKey};  # data to compare
         $count_2 = $count_1 + 1;
         while ( $count_2 < $HoHcnt )
         {
             $key_2 = &GenTupleKey($HoHstr, $count_2);
-            $protected_2 = $HoHref->{$key_2}{$folderKey};  # data to compare
+            $protected_2 = $HoHref->{$key_2}{$directKey};  # data to compare
             if ( $protected_2 eq $protected_1 )
             {
                 if ( $error == 0 )
@@ -1925,46 +1926,46 @@ sub ValidateCFGorDie
 } # ValidateCFGorDie
 
 # THIS IS CALLED DURING CONFIGUATION PARSE - NOT OTHERWISE
-# the subfolder given, if not the empty string, must be
-# a subfolder of the associated tag folder (the one to
-# protect).  E.g:
-#     if   "/tags" is the folder to be protected then
+# the subdirectory given, if not the empty string, must be
+# a subdirectory of the associated tag directory (the one
+# to protect).  E.g:
+#     if   "/tags" is the directory to be protected then
 #     then "/tags/<whatever>" is acceptable, but
 #          "/foobar/<whatever>" is NOT
-# The subfolder specification must truly be a subfolder
-# of the associated folder to be protected.
-sub ValidateSubFolderOrDie
+# The subdirectory specification must truly be a subdirectory
+# of the associated directory to be protected.
+sub ValidateSubDirOrDie
 {
     my $progn = shift;   # name of this script
-    my $pFold = shift;   # folder name of tag to protect
-    my $globc = shift;   # the subfolder "glob" string/path
+    my $pDire = shift;   # directory name of tag to protect
+    my $globc = shift;   # the subdirectory "glob" string/path
     my $cfile = shift;   # config file
     my $lline = shift;   # current config file line
     my $p_Var = shift;   # config variable for the tag
-    my $s_Var = shift;   # config variable for the sub folder
+    my $s_Var = shift;   # config variable for the sub directory
     my $dbglvl = shift;
     my $leftP; # left part
     my $right; # right part
     local $_;
 
-    # a BLANK regex means that the tag folder does not allow _any_
+    # a BLANK regex means that the tag directory does not allow _any_
     # project names, hey that's ok!  if so there is no need to test
     if ( $globc ne "" )
     {
-        $leftP = $globc; $leftP =~ s@(${pFold})(.+)@$1@;
-        $right = $globc; $right =~ s@(${pFold})(.+)@$2@;
-        if ( $pFold ne $leftP )
+        $leftP = $globc; $leftP =~ s@(${pDire})(.+)@$1@;
+        $right = $globc; $right =~ s@(${pDire})(.+)@$2@;
+        if ( $pDire ne $leftP )
         {
             print STDERR "$progn: configuration file:\n";
             print STDERR "        \"$cfile\"\n";
             print STDERR "$progn: is misconfigured at approximately line $lline.\n";
             print STDERR "$progn: the variable=value pair:\n";
-            print STDERR "        $p_Var=\"$pFold\"\n";
+            print STDERR "        $p_Var=\"$pDire\"\n";
             print STDERR "$progn: the variable=value pair:\n";
             print STDERR "        $s_Var=\"$globc\"\n";
             print STDERR "$progn: are out of synchronization.\n";
             print STDERR "$progn: a correct variable=value pair would be, for example:\n";
-            print STDERR "        $s_Var=\"$pFold/*\"\n";
+            print STDERR "        $s_Var=\"$pDire/*\"\n";
             print STDERR "$progn: the $p_Var value (path) MUST be the\n";
             print STDERR "$progn: the first path in $s_Var (it must start with that path)\n";
             print STDERR "$progn: unless $s_Var is the empty string (path).\n";
@@ -1972,25 +1973,25 @@ sub ValidateSubFolderOrDie
             exit $exitFatalErr;
         }
 
-        # clean up the subfolder "glob" (or it could be a literal path, we still clean it up)
+        # clean up the subdirectory "glob" (or it could be a literal path, we still clean it up)
         $_ = $right;         # the "backslash" is not allowed, it can only lead to problems!
-        print STDERR "ValidateSubFolderOrDie: initial       \$_=$_\n" if ( $dbglvl > 8 );
+        print STDERR "ValidateSubDirOrDie: initial       \$_=$_\n" if ( $dbglvl > 8 );
         s@\\@@g;             # remove all backslash chars - not allowed
-        print STDERR "ValidateSubFolderOrDie: rm backslash  \$_=$_\n" if ( $dbglvl > 8 );
+        print STDERR "ValidateSubDirOrDie: rm backslash  \$_=$_\n" if ( $dbglvl > 8 );
         s@/+@/@g;            # change multiple //* chars into just one /
-        print STDERR "ValidateSubFolderOrDie: rm single sep \$_=$_\n" if ( $dbglvl > 8 );
+        print STDERR "ValidateSubDirOrDie: rm single sep \$_=$_\n" if ( $dbglvl > 8 );
         while ( m@/\.\//@ )  # /../ changed to / in a loop
         {
             s@/\.\./@/@g;    # remove it
             s@/+@/@g;        # don't see how this could happen, but safety first
-        print STDERR "ValidateSubFolderOrDie: in clean loop \$_=$_\n" if ( $dbglvl > 8 );
+        print STDERR "ValidateSubDirOrDie: in clean loop \$_=$_\n" if ( $dbglvl > 8 );
         }
-        print STDERR "ValidateSubFolderOrDie: done          \$_=$_\n" if ( $dbglvl > 8 );
+        print STDERR "ValidateSubDirOrDie: done          \$_=$_\n" if ( $dbglvl > 8 );
         $globc = $leftP . $_;         # the "backslash" is not allowed, it can only lead to problems!
     }
-    print STDERR "ValidateSubFolderOrDie: returning $globc\n" if ( $dbglvl > 7 );
+    print STDERR "ValidateSubDirOrDie: returning $globc\n" if ( $dbglvl > 7 );
     return $globc; # possible modified (cleaned up)
-} # ValidateSubFolderOrDie
+} # ValidateSubDirOrDie
 
 sub ZeroOneOrN # return 0, 1, or any N
 {

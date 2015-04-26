@@ -2,8 +2,9 @@
 ################################################################################
 #  Author:      Joseph C. Pietras - Joseph.Pietras@gmail.com
 #  License:     GNU GENERAL PUBLIC LICENSE Version 2
-#  GitHub:      https://github.com/ossCare/svnPlus.git
-#  SourceForge: TBD
+#  GitHub:      svn co https://github.com/ossCare/svnPlus
+#               git https://github.com/ossCare/svnPlus.git
+#  SourceForge: git clone git://git.code.sf.net/p/svnplus/code svnplus-code
 ################################################################################
 # ENTER: INITIALIZE THE PROGRAM
 use warnings;
@@ -13,16 +14,16 @@ use Cwd 'abs_path'; # to be able to get full path to this file
 ################################################################################
 
 ################################################################################
-# ENTER: find the name of this program and its folder
+# ENTER: find the name of this program and its directory
 my $NAME=&abs_path($0);         # print "NAME=$NAME\n";
 
 #  $NAME =~ s@/@\\@g;           # change all "/" to "\" chars WINDOWS?
-my $DIRE = $NAME;               # init to full path for finding folder we live
+my $DIRE = $NAME;               # init to full path for finding directory we live
 $NAME =~ s@.*\\@@;           # print "NAME=$NAME\n";
 $NAME =~ s@.*/@@;            # print "NAME=$NAME\n";
 $DIRE =~ s@\\[^\\][^\\]*$@@; # print "DIRE=$DIRE\n";
 $DIRE =~ s@/[^/][^/]*$@@;    # print "DIRE=$DIRE\n";
-# LEAVE: find the name of this program and its folder
+# LEAVE: find the name of this program and its directory
 ################################################################################
 
 ################################################################################
@@ -88,7 +89,7 @@ if ( &SimplyAllow(\%RO_CLI, \%ROconf, \@svnCommit) == 1 )
 {
 
     # if the commit is ok, because it does impact protected
-    # folders, but debug is wanted must exit NON-zero, which
+    # directories, but debug is wanted must exit NON-zero, which
     # causes the commit to fail but the client gets the standard
     # error.  A zero exit causes the STDERR to be squashed.
     # If any "True" errors occured, "SimplyAllow" will have

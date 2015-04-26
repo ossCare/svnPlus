@@ -65,7 +65,7 @@ namely PROTECTED_PARENT.  This is for security.  Also for
 security any instances of \fB/../\fR (or the like) found in
 the PROTECTED_PRJDIRS variable will be discarded.
 .PP
-Each TAG_FOLDER value must be unique and two(2) or more of
+Each PROTECTED_PARENT value must be unique and two(2) or more of
 them cannot be subdirectories of each other.   For example:
 .br
     PROTECTED_PARENT    = "/tags"
@@ -169,12 +169,13 @@ protected, will be allowed as soon as you set debugging back
 to zero.
 .PP
 If, for whatever reason, you rename/move/remove the
-configuration file out of the hooks folder all commits will
-simply be allowed.  THIS MEANS THAT WITHOUT THE
+configuration file out of the hooks directory all commits
+will simply be allowed.  THIS MEANS THAT WITHOUT THE
 configuration file IT IS AS IF YOU NEVER INSTALLED THE
 SOFTWARE TO BEGIN WITH.  If this "feature" of tagprotect is
 not to your liking and you want the additional security then
-reset this variable, at the top of the PERL library file:
+reset this variable, at the top of the PERL library
+file:
 .br
 .in +2
 my $ALLOW_NO_CONFIG_FILE = 1;
@@ -189,9 +190,19 @@ default behavior, depending on who complains about what!
 .br
 "Version Control with Subversion"
 at http://svnbook.red-bean.com/
-.br
-http://sourceforge.net/<TDB>
-.br
-https://github.com/ossCare/svnPlus.git
+.SH DOWNLOAD
+GitHub:
+.in +2
+svn co https://github.com/ossCare/svnPlus
+.in -2
+or
+.in +2
+git https://github.com/ossCare/svnPlus.git
+.in -2
+.PP
+SourceForge:
+.in +2
+git clone git://git.code.sf.net/p/svnplus/code svnplus-code
+.in -2
 .SH AUTHOR
-\fBpre-commit\fR was written by Joseph C. Pietras.
+\fBpre-commit\fR was written by Joseph C. Pietras - joseph.pietras@gmail.com
