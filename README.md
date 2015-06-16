@@ -30,3 +30,12 @@ version 2.2: fixed the issue of allowing each protected directory
 
 version 2.3: tech debt changes only (changed the use of "folder"
              to "directory").
+
+version 2.4: lots of code changes to get ready for making tagprotect.pl
+             into a PERL object. Debugging working more consistently
+             but not done.
+
+TBD
+version 3.0: NOTE: an attempt to del/add (i.e. move) a directory
+             or file to a protected folder has not been tested
+             or "thought of".  It needs testing.

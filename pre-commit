@@ -16,56 +16,39 @@ use Cwd 'abs_path'; # to be able to get full path to this file
 ################################################################################
 # ENTER: find the name of this program and its directory
 my $NAME=&abs_path($0);         # print "NAME=$NAME\n";
-
 #  $NAME =~ s@/@\\@g;           # change all "/" to "\" chars WINDOWS?
 my $DIRE = $NAME;               # init to full path for finding directory we live
-$NAME =~ s@.*\\@@;           # print "NAME=$NAME\n";
-$NAME =~ s@.*/@@;            # print "NAME=$NAME\n";
-$DIRE =~ s@\\[^\\][^\\]*$@@; # print "DIRE=$DIRE\n";
-$DIRE =~ s@/[^/][^/]*$@@;    # print "DIRE=$DIRE\n";
+   $NAME =~ s@.*\\@@;           # print "NAME=$NAME\n";
+   $NAME =~ s@.*/@@;            # print "NAME=$NAME\n";
+   $DIRE =~ s@\\[^\\][^\\]*$@@; # print "DIRE=$DIRE\n";
+   $DIRE =~ s@/[^/][^/]*$@@;    # print "DIRE=$DIRE\n";
+my $dbglvl;
 # LEAVE: find the name of this program and its directory
 ################################################################################
 
+#################################################################################
+## ENTER: save off the command line arguments that sometimes get lost after
+##        the next require statement.
+#my @CLIargs;      # copy of command line args
+#foreach (@ARGV) { push @CLIargs, $_; }
+## LEAVE: save off the command line arguments that sometimes get lost after
+##        the next require statement.
+#################################################################################
+
 ################################################################################
 # ENTER: CONFIG FILE, PRE-CONFIG FILE and REQUIRED SUBROUTINE FILE
-my $CFGF = "$DIRE/tagprotect.conf";     # the name of the config file itself
-my $PCFG = "$DIRE/tagprotect.conf.pl";  # the name of the "pre-compiled" file
 require "$DIRE/tagprotect.pl";          # subroutines, read them in
 # LEAVE: CONFIG FILE, PRE-CONFIG FILE and REQUIRED SUBROUTINE FILE
 ################################################################################
 
 ################################################################################
 # ENTER: PARSE COMMAND LINE AND CONFIGURATION FILE
-my ( %RO_CLI ) = &ParseCLI($NAME, $DIRE, $CFGF, $PCFG);
-my ( %ROconf ) = &ParseCFG($NAME, \%RO_CLI);  # some of $CFGF now in %RO_CLI
+#$CLIargs[0] = '--help' if ( int(@CLIargs) == 0 );
+#&ParseCLI($NAME, $DIRE, \@CLIargs); # ParseCLI will die  with errors if it fails
+$ARGV[0] = '--help' if (int(@ARGV) == 0);
+&ParseCLI($NAME, $DIRE, \@ARGV); # ParseCLI will die  with errors if it fails
+$dbglvl = &ParseCFG(); # ParseCFG dies if it can't read config
 # LEAVE: PARSE COMMAND LINE AND CONFIGURATION FILE
-################################################################################
-
-################################################################################
-# ENTER: get the debug level for use in this file from the command line data
-#       (were it is kept even though it likly came from the configuation file).
-my $dbglvl     = &DebugLevel(\%RO_CLI);
-#{
-#    my $fn = "/tmp/${NAME}-$$-out";
-#    my $oh;
-#    open $oh, ">", $fn;
-#    print $oh '$dbglvl=' . "$dbglvl\n";
-#    close $oh;
-#}
-# LEAVE:
-################################################################################
-
-################################################################################
-# ENTER: if debugging just the above Parse subroutines you should exit here
-#        because next we read the data provided by subversion and if you are
-#        not under subversion this script might hang or generate useless error
-#        messages.
-if ( &JustCFGParse(\%RO_CLI) == 1)
-{
-    print STDERR "$NAME: exit because just parse command line is in effect\n" if ( $dbglvl > 0 );
-    exit 0;
-}
-# LEAVE:
 ################################################################################
 
 ## # SINCE NOT USED JUST DON'T BOTHER
@@ -79,31 +62,24 @@ if ( &JustCFGParse(\%RO_CLI) == 1)
 ## # LEAVE: READ "LOCK TOKENS" FROM STDIN -> NOTE: script doesn't use the locks
 ## ################################################################################
 
-# is this really needed?
-my $svnAuthor = ""; # because of strict init to blank
-my @svnCommit = (); # because of strict init to blank
-$svnAuthor = &GetSvnAuthor($NAME, \%RO_CLI);
-@svnCommit = &GetSvnCommit($NAME, \%RO_CLI);
-
-if ( &SimplyAllow(\%RO_CLI, \%ROconf, \@svnCommit) == 1 )
+if ( &SimplyAllow() )
 {
-
-    # if the commit is ok, because it does impact protected
-    # directories, but debug is wanted must exit NON-zero, which
-    # causes the commit to fail but the client gets the standard
-    # error.  A zero exit causes the STDERR to be squashed.
-    # If any "True" errors occured, "SimplyAllow" will have
-    # printed them to standard error and would have returned 0.
+    # if the commit is ok, because it does impact protected directories,
+    # but debug is wanted then this script must exit NON-zero, which
+    # causes the commit to fail but the client gets the standard error.
+    # A zero exit causes the STDERR to be squashed.  If any "True"
+    # errors occured, "SimplyAllow" will have printed them to standard
+    # error and would have returned 0.
     if ( $dbglvl > 0 )
     {
-        print STDERR "$NAME:  SimplyAllow succeeded but exiting 1 because debug is enabled\n";
+        print STDERR "$NAME: SimplyAllow succeeded but script exiting 1 (FAIL) because debug is enabled.\n";
         exit 1;
     }
     exit 0;
 }
-if ( &AllowCommit($NAME, \%RO_CLI, \%ROconf, \@svnCommit, $svnAuthor) == 1)
-{
 
+if ( &AllowCommit() )
+{
     # if the commit is ok, i.e.: it is allowed, but debug is wanted
     # must exit NON-zero, which causes the commit to fail but the
     # client gets the standard error.  A zero exit causes the STDERR
@@ -111,12 +87,12 @@ if ( &AllowCommit($NAME, \%RO_CLI, \%ROconf, \@svnCommit, $svnAuthor) == 1)
     # will have printed them to standard error and would have returned 0.
     if ( $dbglvl > 0 )
     {
-        print STDERR "$NAME:  AllowCommit succeeded but exiting 1 because debug is enabled\n";
+        print STDERR "$NAME: AllowCommit succeeded but script exiting 1 (FAIL) because debug is enabled.\n";
         exit 1;
     }
     exit 0;
 }
 
-# commit is not allowed "AllowCommit" has already output the reason
-print STDERR "$NAME:  exit 1 this is a true prevent commit condition\n" if ( $dbglvl > 0 );
+# commit is not allowed, sub "AllowCommit" has already output the reason
+print STDERR "$NAME: exit 1 (FAIL) this is a true prevent commit condition.\n" if ( $dbglvl > 0 );
 exit 1;
