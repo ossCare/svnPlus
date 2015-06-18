@@ -26,15 +26,6 @@ my $dbglvl;
 # LEAVE: find the name of this program and its directory
 ################################################################################
 
-#################################################################################
-## ENTER: save off the command line arguments that sometimes get lost after
-##        the next require statement.
-#my @CLIargs;      # copy of command line args
-#foreach (@ARGV) { push @CLIargs, $_; }
-## LEAVE: save off the command line arguments that sometimes get lost after
-##        the next require statement.
-#################################################################################
-
 ################################################################################
 # ENTER: CONFIG FILE, PRE-CONFIG FILE and REQUIRED SUBROUTINE FILE
 require "$DIRE/tagprotect.pl";          # subroutines, read them in
@@ -43,8 +34,6 @@ require "$DIRE/tagprotect.pl";          # subroutines, read them in
 
 ################################################################################
 # ENTER: PARSE COMMAND LINE AND CONFIGURATION FILE
-#$CLIargs[0] = '--help' if ( int(@CLIargs) == 0 );
-#&ParseCLI($NAME, $DIRE, \@CLIargs); # ParseCLI will die  with errors if it fails
 $ARGV[0] = '--help' if (int(@ARGV) == 0);
 &ParseCLI($NAME, $DIRE, \@ARGV); # ParseCLI will die  with errors if it fails
 $dbglvl = &ParseCFG(); # ParseCFG dies if it can't read config
@@ -81,10 +70,11 @@ if ( &SimplyAllow() )
 if ( &AllowCommit() )
 {
     # if the commit is ok, i.e.: it is allowed, but debug is wanted
-    # must exit NON-zero, which causes the commit to fail but the
-    # client gets the standard error.  A zero exit causes the STDERR
-    # to be squashed.    If any "True" errors occurred, "AllowCommit"
-    # will have printed them to standard error and would have returned 0.
+    # then this script must exit NON-zero, which causes the commit to
+    # fail but the client gets the standard error.  A zero exit causes
+    # the STDERR to be squashed.    If any "True" errors occurred,
+    # "AllowCommit" will have printed them to standard error and would
+    # have returned 0.
     if ( $dbglvl > 0 )
     {
         print STDERR "$NAME: AllowCommit succeeded but script exiting 1 (FAIL) because debug is enabled.\n";

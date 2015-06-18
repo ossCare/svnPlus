@@ -8,28 +8,40 @@
 ################################################################################
 my $VERSION_FILE = 'tagprotect.version.txt';
 
-# IF YOU RUN WITHOUT A CONFIGUATION FILE all COMMITS ARE ALLOWED ALL
-# TAG PROTECTION IS DISABLED.  IF THIS VARIABLE IS SET TO 0, THEN THE
-# PROGRAM WILL NOT RUN WITHOUT A CONFIGURATION FILE.  YOU CAN export
-# A DEFAULT CONFIGURATION FILE WITH THE --generate OPTION.
+# IF $ALLOW_NO_CONFIG_FILE=0, THE PROGRAM WILL NOT RUN WITHOUT A
+# CONFIGURATION FILE.  YOU CAN export A DEFAULT CONFIGURATION FILE WITH
+# THE --generate OPTION.
+# IF $ALLOW_NO_CONFIG_FILE=1 THE PROGRAM WILL RUN WITHOUT A
+# CONFIGUATION FILE AND IT WILL ALLOW ALL COMMITS AND TAG PROTECTION IS
+# DISABLED.
 my $ALLOW_NO_CONFIG_FILE = 0;
 
 ################################################################################
 #### The script parses both the command line and the configuration file     ####
-#### (or if no configuration file is found it uses all default values).     ####
 ####                                                                        ####
-#### The data gotten from the command line (in production this is the path  ####
-#### to the repository and transaction ID) is put into a hash along with    ####
-#### other data values.  These other data values either default or are      ####
-#### parsed from the configuration file.  Despite this they are kept in the ####
-#### "CLI" hash and not the configuration CFG hash of hashes.  The hash of  ####
-#### hashes contains only data regarding which subversion "root" direct-    ####
-#### ories are protected tag directories and the associated configuration   ####
-#### for that "tag" directory.                                              ####
+#### The options gotten from the command line change and/or set variables.  ####
+#### These variables are known as scalars in PERL. All command line options ####
+#### have sensible defaults.                                                ####
+####                                                                        ####
+#### In PRODUCTION subversion will pass this script 2 command line options  ####
+#### which are 1) the path to the repository                                ####
+####       and 2) transaction ID                                            ####
+####                                                                        ####
+#### All other command line options can only be set running the program     ####
+#### from the COMMAND LINE.                                                 ####
+####                                                                        ####
+#### The configuration file allows for changing values for DEBUG and the    ####
+#### full paths to svn and to svnlook.                                      ####
+####                                                                        ####
+#### The configuration file also configures "N-Tuples" which are sets of    ####
+#### variables that configure one "protected directory".  The configuration ####
+#### file can contain as many N-Tuples as wanted.  Each N-Tuple is stored   ####
+#### in a PERL hash.   Each of these hashes is stored in a hash-of-hashes.  ####
+####                                                                        ####
 ################################################################################
-# this file does not, normally, exit ever, unless:
+# this file does not, normally, exit, unless:
 # FATAL ERROR
-my $exitFatalErr = 1; # when
+my $exitFatalErr = 1;
 
 # USER ASKED FOR HELP, PARSE, etc, from command line
 my $exitUserHelp = 0; # when
@@ -45,9 +57,8 @@ use autodie; # automatic die called if file fails to open
 use Sysadm::Install qw(tap);
 use Text::Glob qw( match_glob glob_to_regex glob_to_regex_string);
 use POSIX qw(strftime);
-#use Time::Format qw(time_format time_strftime time_manip);
 # The following might be easier but ...
-# use SVN::SVNLook; # not there for CentOS6
+# use SVN::SVNLook; # not there for CentOS6 so Sysadm:Install used
 # LEAVE: INITIALIZE
 ################################################################################
 
@@ -59,15 +70,14 @@ use POSIX qw(strftime);
 
 #  1
 #  --debug/-d/--debug=N/-dN
-#     $CLIC_DEBUG                       # CLI command line debug level 
+#     $CLIC_DEBUG                       # CLI command line debug level
 #     $CLIF_DEBUG                       # debug level from config file parse, if any
-my $CLIF_DEBUG = -1;                    # -1 => no debug level gotten from configuration file parse
 my $VAR_H_DEBUG = "DEBUG";              # looked for in config file
 my $DEF_H_DEBUG =  0;                   # default - some low level debug can only be seen by
                                         # changing the default, here, to a high level!
 #  2
 #  not cli setable, but config setable, or default=/usr/bin/svnlook
-#      $CLISVNLOOK                      # CLI, path to svnlook program 
+#      $CLISVNLOOK                      # CLI, path to svnlook program
 my $VAR_SVNLOOK = "SVNLOOK";            # variable looked for in config file
 my $DEF_SVNLOOK = "/usr/bin/svnlook";   # default value if not in config;
 
@@ -141,21 +151,9 @@ my     $NAMEKEY = "$VAR_NAME_AF";       # CFG key, directory name of the archive
 ################################################################################
 
 ################################################################################
-my $TupleCNT = 0;               # count of N-Tuple keys, for building a N-Tuple key
-my $TupleSTR = "Config_Tuple";  # string part of a N-Tuple key
-################################################################################
-
-################################################################################
-###################### command line, in production there will always
-###################### only be 2 command line options, the path to
-###################### the subversion repository and the subversion
-###################### transaction ID, but the hash is filled out
-###################### with other data that _could_ come from command
-###################### line arguments when invoking the script from the
-###################### command line for debugging/testing purposes.
-######################
-###################### everthing neeed as initial default in case one of the
-###################### Print...AndExit functions is called.
+# ENTER: VARIABLES WITH FILE SCOPE all with sensible defaults
+my $Tuple_CNT = 0;               # count of keys, for building a N-Tuple key
+my $Tuple_STR = "Config_Tuple";  # string part of a N-Tuple key
 my $CLIBLDPREC = 0;             # 1 if --build on command line
 my $CLIRUNNING = 0;             # 1 if we know we are running CLI
 my $CLICONFIGF = "";            # name of config file, defaulted below - but it can be changed
@@ -177,6 +175,7 @@ our %cfgHofH = ();              # hash of hashes - holds all configs
 my @CommitData;                 # svnlook output split into an array of files/directories
 my $dbgOffset = 5;              # set the default high so this function does not output
                                 # unless in command line mode
+# LEAVE: VARIABLES WITH FILE SCOPE all with sensible defaults
 ################################################################################
 
 # ENTER ########################################################################
@@ -1384,8 +1383,8 @@ sub LoadCFGTuple # put an N-Tuple into the Hash of hashes
     }
 
     # get new key for outer hash
-    $key =  &GenTupleKey($TupleSTR, $TupleCNT);
-    $TupleCNT++;
+    $key =  &GenTupleKey($Tuple_STR, $Tuple_CNT);
+    $Tuple_CNT++;
 
     # insist that this new configuation plays by the rules
     $inHashRef->{$SUBfKEY} = &ValidateSubDirOrDie($inHashRef->{$TAGpKEY},
@@ -1463,8 +1462,8 @@ sub PrintUsageAndExit # output and exit
     print STDOUT "OR:    $PROGNAME --help                    - Get this printout.\n";
     print STDOUT "OR:    $PROGNAME [options]                 - configuration testing and debugging.\n";
     print STDOUT "\n";
-    print STDOUT "    THIS SCRIPT IS A HOOK FOR SUBVERSION AND IS NOT MEANT TO BE\n";
-    print STDOUT "    RUN FROM THE COMMAND LINE UNDER NORMAL USAGE.\n";
+    print STDOUT "    THIS SCRIPT IS A HOOK FOR SUBVERSION AND IS NOT RUN FROM\n";
+    print STDOUT "    THE COMMAND LINE DURING PRODUCTION USAGE.\n";
     print STDOUT "\n";
     print STDOUT "    The required arguments, repo-name and transaction-id, are\n";
     print STDOUT "    provided by subversion.  This subversion hook uses:\n";
@@ -1480,7 +1479,7 @@ sub PrintUsageAndExit # output and exit
     print STDOUT "    and the configuation file will not be read.\n";
     print STDOUT "\n";
     print STDOUT "    When invoked from the command line it will accept these additional\n";
-    print STDOUT "    options, there is no way you can give these in production while running\n";
+    print STDOUT "    options, there is no way you can give these in PRODUCTION while running\n";
     print STDOUT "    under subversion.\n";
 
     print STDOUT "    --help            | -h      Show usage information and exit.\n";
@@ -1497,7 +1496,7 @@ sub PrintUsageAndExit # output and exit
     print STDOUT "                                comments, and  write it to standard output.\n";
     print STDOUT "                                Typically used for testing/debugging a\n";
     print STDOUT "                                configuration file before moving into\n";
-    print STDOUT "                                production.\n";
+    print STDOUT "                                PRODUCTION.\n";
     print STDOUT "\n";
     print STDOUT "    --parse[=file]  | -c[file]  Parse  the  configuration file, default is\n";
     print STDOUT "                                tagprotect.conf, then exit.  Errors found in the\n";
@@ -1506,7 +1505,7 @@ sub PrintUsageAndExit # output and exit
     print STDOUT "                                unless debug is greater than zero(0).  Typically\n";
     print STDOUT "                                used for testing/debugging an  alternate\n";
     print STDOUT "                                configuration file before moving it into\n";
-    print STDOUT "                                production.  NOTE: in production  the\n";
+    print STDOUT "                                PRODUCTION.  NOTE: in PRODUCTION  the\n";
     print STDOUT "                                configuration  file cannot be changed, you can\n";
     print STDOUT "                                only do this on the command line.\n";
     print STDOUT "\n";
@@ -2032,14 +2031,14 @@ sub ValidateCFGorDie
     my $protected_2;       # 2nd protected directory to compare with
     my $error = 0;         # error count
 
-    while ( $count_1 < $TupleCNT )
+    while ( $count_1 < $Tuple_CNT )
     {
-        $key_1 = &GenTupleKey($TupleSTR, $count_1);
+        $key_1 = &GenTupleKey($Tuple_STR, $count_1);
         $protected_1 = $cfgHofH{$key_1}{$TAGpKEY};  # data to compare
         $count_2 = $count_1 + 1;
-        while ( $count_2 < $TupleCNT )
+        while ( $count_2 < $Tuple_CNT )
         {
-            $key_2 = &GenTupleKey($TupleSTR, $count_2);
+            $key_2 = &GenTupleKey($Tuple_STR, $count_2);
             $protected_2 = $cfgHofH{$key_2}{$TAGpKEY};  # data to compare
             if ( $protected_2 eq $protected_1 )
             {

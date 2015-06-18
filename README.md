@@ -35,6 +35,9 @@ version 2.4: lots of code changes to get ready for making tagprotect.pl
              into a PERL object. Debugging working more consistently
              but not done.
 
+version 2.5: removed no longer accurate comments, added more comments
+             and other minor changes to i/o.
+
 TBD
 version 3.0: NOTE: an attempt to del/add (i.e. move) a directory
              or file to a protected folder has not been tested
