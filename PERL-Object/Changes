@@ -1,0 +1,51 @@
+Revision history for Perl extension SVNPlus::TagProtect.
+
+3.13  Mon Aug 10 15:27:16 2015
+	- changed debug to make them consistent
+	- beautifed with perltidy
+
+3.12  Sun Aug  2 15:15:52 2015
+	- corrected wrong output given with --help
+
+3.11  Sun Aug  2 15:11:02 2015
+	- redid the parameter passing to PrintDefaultConfigOptionallyExit, it was not working
+
+3.10  Sun Aug  2 14:57:40 2015
+	- bug fix with parameter passing to PrintDefaultConfigOptionallyExit
+
+3.09  Sun Aug  2 14:19:21 2015
+	- reworked the command line options
+	- working the DEBUG levels for consistency - the are better but not done
+	- fixed misspellings
+
+3.08  Sat Aug  1 18:26:00 2015
+	- original version; created by h2xs 1.23 with options
+		-AX -b 5.8.4 -v 3.08 --skip-exporter SVNPlus::TagProtect
+
+3.07  Sat Jul 25 18:37:52 2015
+	- original version; created by h2xs 1.23 with options
+		-AX -b 5.10.0 -v 3.07 --skip-exporter SVNPlus::TagProtect
+
+3.06  Sat Jul 25 18:18:28 2015
+	- working DESCRIPTION documentation
+	- fixed $NAME variable
+
+3.05  Sat Jul 25 18:06:15 2015
+	- fixed the SYNOPSIS documentation
+
+3.04  Sat Jul 25 17:43:12 2015
+	- original version; created by h2xs 1.23 with options
+		-AX -b 5.16.0 -v 3.04 --skip-exporter SVNPlus::TagProtect
+
+3.03  Thu Jul 23 18:36:33 2015
+	- original version; created by h2xs 1.23 with options
+		--skip-exporter -AX -b 5.6.0 -v 3.03 SVNPlus::TagProtect
+
+3.02  Thu Jul 23 18:27:38 2015
+	- original version; created by h2xs 1.23 with options
+		-AX -b 5.6.0 SVNPlus::TagProtect
+
+3.01  Sun Jul 19 12:40:43 2015
+	- original version; created by h2xs 1.23 with options
+		-AX -b 5.16.3 SVNPlus::TagProtect
+

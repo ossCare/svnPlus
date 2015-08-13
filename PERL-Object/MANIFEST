@@ -1,0 +1,6 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/SVNPlus-TagProtect.t
+lib/SVNPlus/TagProtect.pm

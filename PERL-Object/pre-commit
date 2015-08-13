@@ -1,0 +1,52 @@
+#! /usr/bin/perl -w
+use warnings;
+use strict;
+use SVNPlus::TagProtect;
+
+$_ = $0;
+s@.*/@@;
+my $NAME = $_;
+
+# build the object: it exits if args are invalid
+my $tagprotect = SVNPlus::TagProtect->new( $0, \@ARGV );
+
+if ( $tagprotect->SimplyAllow() )
+{
+
+    # if the commit is ok, because it does impact protected directories,
+    # but debug is wanted then this script must exit NON-zero, which
+    # causes the commit to fail but the client gets the standard error.
+    # A zero exit causes the STDERR to be squashed.  If any "True"
+    # errors occured, "SimplyAllow" will have printed them to standard
+    # error and would have returned 0.
+    if ( $tagprotect->GetDebugLevel > 0 )
+    {
+        print STDERR
+            "$NAME: SimplyAllow succeeded but script exiting 1 (FAIL) because debug is enabled.\n";
+        exit 1;
+    }
+    exit 0;
+}
+
+if ( $tagprotect->AllowCommit() )
+{
+
+    # if the commit is ok, i.e.: it is allowed, but debug is wanted
+    # then this script must exit NON-zero, which causes the commit to
+    # fail but the client gets the standard error.  A zero exit causes
+    # the STDERR to be squashed.    If any "True" errors occurred,
+    # "AllowCommit" will have printed them to standard error and would
+    # have returned 0.
+    if ( $tagprotect->GetDebugLevel > 0 )
+    {
+        print STDERR
+            "$NAME: AllowCommit succeeded but script exiting 1 (FAIL) because debug is enabled.\n";
+        exit 1;
+    }
+    exit 0;
+}
+
+# commit is not allowed, sub "AllowCommit" has already output the reason
+print STDERR "$NAME: exit 1 (FAIL) this is a true prevent commit condition.\n"
+  if ( $tagprotect->GetDebugLevel > 0 );
+exit 1;
