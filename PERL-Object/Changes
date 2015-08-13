@@ -1,4 +1,16 @@
 Revision history for Perl extension SVNPlus::TagProtect.
+3.16  Thu Aug 13 16:58:34 2015
+	- figured out how to add dependencies to Makefile.PL
+
+3.15  Thu Aug 13 12:46:05 2015
+	- added this comment to let users know that a copy of 
+		- pre-commit
+		- pre-commit.conf are in this directory
+	- added know dependencies to README
+	- rebuilt the tarball using "make dist"
+
+3.14  Thu Aug 13 11:11:24 2015
+	- removed MacOS specific folders from distribution tarball
 
 3.13  Mon Aug 10 15:27:16 2015
 	- changed debug to make them consistent
