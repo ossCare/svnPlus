@@ -6,7 +6,7 @@ use warnings;
 
 our @ISA = qw();
 
-our $VERSION = '3.16';
+our $VERSION = '3.17';
 
 # Preloaded methods go here.
 use autodie;                              # automatic die if file fails to open
@@ -2171,7 +2171,12 @@ SVNPlus::TagProtect - Perl extension for Subversion tag protection
 
 =head1 SYNOPSIS
 
-This is a fully functional Subversion "pre-commit" file for deploying this object.
+This is a fully functional Subversion "pre-commit" file for deploying this
+object.  After installing this module copy/paste this perl code, make the file
+executable, then run it with the --generate option to get an initial, default
+configuration file.  If you are working with source code this file, "pre-commit",
+and the default configuration file "pre-commit.conf" are contained in the
+tarball.
 
   #! /usr/bin/perl -w
   use warnings;
@@ -2187,7 +2192,6 @@ This is a fully functional Subversion "pre-commit" file for deploying this objec
   
   if ( $tagprotect->SimplyAllow() )
   {
-  
       # if the commit is ok, because it does impact protected directories,
       # but debug is wanted then this script must exit NON-zero, which
       # causes the commit to fail but the client gets the standard error.
@@ -2205,7 +2209,6 @@ This is a fully functional Subversion "pre-commit" file for deploying this objec
   
   if ( $tagprotect->AllowCommit() )
   {
-  
       # if the commit is ok, i.e.: it is allowed, but debug is wanted
       # then this script must exit NON-zero, which causes the commit to
       # fail but the client gets the standard error.  A zero exit causes
