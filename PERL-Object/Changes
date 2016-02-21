@@ -1,4 +1,7 @@
 Revision history for Perl extension SVNPlus::TagProtect.
+3.17.0  Sun Feb 21 12:57:12 2016
+	- switched to Semantic versioning, i.e. the MAJOR.MINOR.PATH convention
+
 3.17  Mon Aug 17 20:51:55 2015
 	- removed core dependencies, they should be there by default.
 	- C compiler is needed to resolve dependencies, removing core dependencies does not change that.

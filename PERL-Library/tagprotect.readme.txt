@@ -1,3 +1,9 @@
+This code is now deprecated in favor of the SVNPlus::TagProtect
+module available for download from CPAN.  You can install it
+with:   cpanm SVNPlus::TagProtect
+
+
+
 The svnPlus "tagprotect" subverison hook uses 4 files only.
 They are:
     pre-commit
