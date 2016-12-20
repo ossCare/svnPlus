@@ -1,0 +1,495 @@
+This file is a sample of installing svnPlus on Ubuntu 16.04 running apache2 with mod_svn installed, up and working, before these commands were run.
+
+
+
+root@nas:~# apt install cpanminus
+Reading package lists... Done
+Building dependency tree
+Reading state information... Done
+The following additional packages will be installed:
+  libalgorithm-c3-perl libb-hooks-endofscope-perl libb-hooks-op-check-perl libbareword-filehandles-perl libclass-c3-perl libclass-c3-xs-perl libclass-method-modifiers-perl
+  libclass-xsaccessor-perl libcpan-changes-perl libcpan-distnameinfo-perl libcpan-meta-check-perl libcpan-meta-perl libcpan-meta-requirements-perl libcpan-meta-yaml-perl
+  libdata-optlist-perl libdata-perl-perl libdata-section-perl libdevel-caller-perl libdevel-globaldestruction-perl libdevel-lexalias-perl libfile-pushd-perl libfile-slurp-perl
+  libgetopt-long-descriptive-perl libimport-into-perl libindirect-perl libio-stringy-perl liblexical-sealrequirehints-perl liblocal-lib-perl libmodule-build-perl
+  libmodule-cpanfile-perl libmodule-implementation-perl libmodule-metadata-perl libmodule-runtime-perl libmodule-signature-perl libmoo-perl libmoox-handlesvia-perl
+  libmro-compat-perl libmultidimensional-perl libnamespace-autoclean-perl libnamespace-clean-perl libpackage-stash-perl libpackage-stash-xs-perl libpadwalker-perl
+  libparams-classify-perl libparams-util-perl libparams-validate-perl libparse-pmfile-perl libpath-tiny-perl libpod-markdown-perl libpod-readme-perl librole-tiny-perl
+  libsoftware-license-perl libstrictures-perl libstring-shellquote-perl libsub-exporter-perl libsub-exporter-progressive-perl libsub-identify-perl libsub-install-perl
+  libtext-template-perl libtry-tiny-perl libtype-tiny-perl libtype-tiny-xs-perl libunicode-utf8-perl libvariable-magic-perl libversion-perl
+Suggested packages:
+  libscalar-number-perl libdevel-stacktrace-perl
+The following NEW packages will be installed:
+  cpanminus libalgorithm-c3-perl libb-hooks-endofscope-perl libb-hooks-op-check-perl libbareword-filehandles-perl libclass-c3-perl libclass-c3-xs-perl libclass-method-modifiers-perl
+  libclass-xsaccessor-perl libcpan-changes-perl libcpan-distnameinfo-perl libcpan-meta-check-perl libcpan-meta-perl libcpan-meta-requirements-perl libcpan-meta-yaml-perl
+  libdata-optlist-perl libdata-perl-perl libdata-section-perl libdevel-caller-perl libdevel-globaldestruction-perl libdevel-lexalias-perl libfile-pushd-perl libfile-slurp-perl
+  libgetopt-long-descriptive-perl libimport-into-perl libindirect-perl libio-stringy-perl liblexical-sealrequirehints-perl liblocal-lib-perl libmodule-build-perl
+  libmodule-cpanfile-perl libmodule-implementation-perl libmodule-metadata-perl libmodule-runtime-perl libmodule-signature-perl libmoo-perl libmoox-handlesvia-perl
+  libmro-compat-perl libmultidimensional-perl libnamespace-autoclean-perl libnamespace-clean-perl libpackage-stash-perl libpackage-stash-xs-perl libpadwalker-perl
+  libparams-classify-perl libparams-util-perl libparams-validate-perl libparse-pmfile-perl libpath-tiny-perl libpod-markdown-perl libpod-readme-perl librole-tiny-perl
+  libsoftware-license-perl libstrictures-perl libstring-shellquote-perl libsub-exporter-perl libsub-exporter-progressive-perl libsub-identify-perl libsub-install-perl
+  libtext-template-perl libtry-tiny-perl libtype-tiny-perl libtype-tiny-xs-perl libunicode-utf8-perl libvariable-magic-perl libversion-perl
+0 upgraded, 66 newly installed, 0 to remove and 0 not upgraded.
+Need to get 2,261 kB of archives.
+After this operation, 7,618 kB of additional disk space will be used.
+Do you want to continue? [Y/n] y
+Get:1 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libcpan-distnameinfo-perl all 0.12-1 [8,662 B]
+Get:2 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libversion-perl amd64 1:0.9912-1ubuntu2 [53.1 kB]
+Get:3 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libcpan-meta-requirements-perl all 2.140-1 [16.0 kB]
+Get:4 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libcpan-meta-yaml-perl all 0.018-1 [12.8 kB]
+Get:5 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libcpan-meta-perl all 2.150005-1 [122 kB]
+Get:6 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libmodule-metadata-perl all 1.000027-1 [19.5 kB]
+Get:7 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libcpan-meta-check-perl all 0.012-1 [8,026 B]
+Get:8 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libfile-pushd-perl all 1.009-1 [11.9 kB]
+Get:9 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libmodule-build-perl all 0.421600-1 [201 kB]
+Get:10 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 liblocal-lib-perl all 2.000018-1 [45.7 kB]
+Get:11 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libmodule-cpanfile-perl all 1.1002-1 [23.8 kB]
+Get:12 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libparse-pmfile-perl all 0.39-1 [14.0 kB]
+Get:13 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libstring-shellquote-perl all 1.03-1.2 [11.8 kB]
+Get:14 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 cpanminus all 1.7040-1 [199 kB]
+Get:15 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libalgorithm-c3-perl all 0.10-1 [11.3 kB]
+Get:16 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libparams-classify-perl amd64 0.013-5build1 [21.1 kB]
+Get:17 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libmodule-runtime-perl all 0.014-2 [15.6 kB]
+Get:18 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libtry-tiny-perl all 0.24-1 [19.8 kB]
+Get:19 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libmodule-implementation-perl all 0.09-1 [12.2 kB]
+Get:20 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libsub-exporter-progressive-perl all 0.001011-1 [7,064 B]
+Get:21 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libvariable-magic-perl amd64 0.59-1build1 [34.1 kB]
+Get:22 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libb-hooks-endofscope-perl all 0.15-1 [16.2 kB]
+Get:23 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libb-hooks-op-check-perl amd64 0.19-2build2 [9,384 B]
+Get:24 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 liblexical-sealrequirehints-perl amd64 0.009-1build1 [13.1 kB]
+Get:25 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libbareword-filehandles-perl amd64 0.003-1build3 [7,758 B]
+Get:26 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libclass-c3-perl all 0.30-1 [20.4 kB]
+Get:27 http://us.archive.ubuntu.com/ubuntu xenial/universe amd64 libclass-c3-xs-perl amd64 0.13-2build2 [13.1 kB]
+Setting up libclass-c3-xs-perl (0.13-2build2) ...
+Setting up libclass-method-modifiers-perl (2.11-1) ...
+Setting up libclass-xsaccessor-perl (1.19-2build4) ...
+Setting up libcpan-changes-perl (0.400002-1) ...
+Setting up libparams-util-perl (1.07-2build2) ...
+Setting up libsub-install-perl (0.928-1) ...
+Setting up libdata-optlist-perl (0.109-1) ...
+Setting up librole-tiny-perl (2.000001-2) ...
+Setting up libstrictures-perl (2.000002-1) ...
+Setting up libdata-perl-perl (0.002009-1) ...
+Setting up libmro-compat-perl (0.12-1) ...
+Setting up libsub-exporter-perl (0.986-1) ...
+Setting up libdata-section-perl (0.200006-1) ...
+Setting up libpadwalker-perl (2.2-1build1) ...
+Setting up libdevel-caller-perl (2.06-1build3) ...
+Setting up libdevel-globaldestruction-perl (0.13-1) ...
+Setting up libdevel-lexalias-perl (0.05-1build3) ...
+Setting up libfile-slurp-perl (9999.19-4) ...
+Setting up libio-stringy-perl (2.110-5) ...
+Setting up libparams-validate-perl (1.22-1) ...
+Setting up libgetopt-long-descriptive-perl (0.099-1) ...
+Setting up libimport-into-perl (1.002005-1) ...
+Setting up libindirect-perl (0.36-1build1) ...
+Setting up libmodule-signature-perl (0.79-1) ...
+Setting up libmoo-perl (2.000002-1) ...
+Setting up libmoox-handlesvia-perl (0.001008-2) ...
+Setting up libmultidimensional-perl (0.010-1build3) ...
+Setting up libpackage-stash-perl (0.37-1) ...
+Setting up libsub-identify-perl (0.12-1build1) ...
+Setting up libnamespace-clean-perl (0.26-1) ...
+Setting up libnamespace-autoclean-perl (0.28-1) ...
+Setting up libpackage-stash-xs-perl (0.28-2build2) ...
+Setting up libpath-tiny-perl (0.076-1) ...
+Setting up libpod-markdown-perl (3.003000-1) ...
+Setting up libtype-tiny-perl (1.000005-1) ...
+Setting up libpod-readme-perl (1.1.2-1) ...
+Setting up libtext-template-perl (1.46-1) ...
+Setting up libsoftware-license-perl (0.103011-2) ...
+Setting up libtype-tiny-xs-perl (0.012-1build1) ...
+Setting up libunicode-utf8-perl (0.60-1build2) ...
+
+
+root@nas:~# cpan App:cpanminus
+Loading internal null logger. Install Log::Log4perl for logging messages
+
+CPAN.pm requires configuration, but most of it can be done automatically.
+If you answer 'no' below, you will enter an interactive dialog for each
+configuration option instead.
+
+Would you like to configure as much as possible automatically? [yes]
+Fetching with LWP:
+http://www.cpan.org/authors/01mailrc.txt.gz
+Reading '/root/.cpan/sources/authors/01mailrc.txt.gz'
+............................................................................DONE
+Fetching with LWP:
+http://www.cpan.org/modules/02packages.details.txt.gz
+Reading '/root/.cpan/sources/modules/02packages.details.txt.gz'
+  Database was generated on Fri, 09 Dec 2016 16:17:02 GMT
+..............
+  New CPAN.pm version (v2.14) available.
+  [Currently running version is v2.11]
+  You might want to try
+    install CPAN
+    reload cpan
+  to both upgrade CPAN.pm and run the new version without leaving
+  the current session.
+
+
+..............................................................DONE
+Fetching with LWP:
+http://www.cpan.org/modules/03modlist.data.gz
+Reading '/root/.cpan/sources/modules/03modlist.data.gz'
+DONE
+Writing /root/.cpan/Metadata
+Running install for module 'App::cpanminus'
+Fetching with LWP:
+http://www.cpan.org/authors/id/M/MI/MIYAGAWA/App-cpanminus-1.7042.tar.gz
+Fetching with LWP:
+http://www.cpan.org/authors/id/M/MI/MIYAGAWA/CHECKSUMS
+Checksum for /root/.cpan/sources/authors/id/M/MI/MIYAGAWA/App-cpanminus-1.7042.tar.gz ok
+'YAML' not installed, will not store persistent state
+Configuring M/MI/MIYAGAWA/App-cpanminus-1.7042.tar.gz with Makefile.PL
+Checking if your kit is complete...
+Looks good
+Generating a Unix-style Makefile
+Writing Makefile for App::cpanminus
+Writing MYMETA.yml and MYMETA.json
+  MIYAGAWA/App-cpanminus-1.7042.tar.gz
+  /usr/bin/perl Makefile.PL INSTALLDIRS=site -- OK
+Running make for M/MI/MIYAGAWA/App-cpanminus-1.7042.tar.gz
+cp lib/App/cpanminus/fatscript.pm blib/lib/App/cpanminus/fatscript.pm
+cp lib/App/cpanminus.pm blib/lib/App/cpanminus.pm
+cp bin/cpanm blib/script/cpanm
+"/usr/bin/perl" -MExtUtils::MY -e 'MY->fixin(shift)' -- blib/script/cpanm
+Manifying 1 pod document
+Manifying 2 pod documents
+  MIYAGAWA/App-cpanminus-1.7042.tar.gz
+  /usr/bin/make -- OK
+Running make test
+PERL_DL_NONLAZY=1 "/usr/bin/perl" "-MExtUtils::Command::MM" "-MTest::Harness" "-e" "undef *Test::Harness::Switches; test_harness(0, 'blib/lib', 'blib/arch')" t/*.t
+t/happy_cpantesters.t .. 1/1 # App::cpanminus/1.7042
+t/happy_cpantesters.t .. ok
+All tests successful.
+Files=1, Tests=1,  0 wallclock secs ( 0.03 usr  0.01 sys +  0.03 cusr  0.00 csys =  0.07 CPU)
+Result: PASS
+  MIYAGAWA/App-cpanminus-1.7042.tar.gz
+  /usr/bin/make test -- OK
+Running make install
+Manifying 1 pod document
+Manifying 2 pod documents
+Installing /usr/local/share/perl/5.22.1/App/cpanminus.pm
+Installing /usr/local/share/perl/5.22.1/App/cpanminus/fatscript.pm
+Installing /usr/local/man/man1/cpanm.1p
+Installing /usr/local/man/man3/App::cpanminus.3pm
+Installing /usr/local/man/man3/App::cpanminus::fatscript.3pm
+Installing /usr/local/bin/cpanm
+Appending installation info to /usr/local/lib/x86_64-linux-gnu/perl/5.22.1/perllocal.pod
+  MIYAGAWA/App-cpanminus-1.7042.tar.gz
+  /usr/bin/make install  -- OK
+
+
+
+root@nas:~# cpan
+Loading internal null logger. Install Log::Log4perl for logging messages
+Terminal does not support AddHistory.
+
+cpan shell -- CPAN exploration and modules installation (v2.11)
+Enter 'h' for help.
+
+cpan[1]> install CPAN
+Reading '/root/.cpan/Metadata'
+  Database was generated on Fri, 09 Dec 2016 16:17:02 GMT
+Running install for module 'CPAN'
+Fetching with LWP:
+http://www.cpan.org/authors/id/A/AN/ANDK/CPAN-2.14.tar.gz
+Fetching with LWP:
+http://www.cpan.org/authors/id/A/AN/ANDK/CHECKSUMS
+Checksum for /root/.cpan/sources/authors/id/A/AN/ANDK/CPAN-2.14.tar.gz ok
+Scanning cache /root/.cpan/build for sizes
+............................................................................DONE
+'YAML' not installed, will not store persistent state
+Configuring A/AN/ANDK/CPAN-2.14.tar.gz with Makefile.PL
+
+Importing PAUSE public key into your GnuPG keychain... done!
+(You may wish to trust it locally with 'gpg --lsign-key 450F89EC')
+Checking if your kit is complete...
+Looks good
+Generating a Unix-style Makefile
+Writing Makefile for CPAN
+Writing MYMETA.yml and MYMETA.json
+  ANDK/CPAN-2.14.tar.gz
+  /usr/bin/perl Makefile.PL INSTALLDIRS=site -- OK
+Running make for A/AN/ANDK/CPAN-2.14.tar.gz
+cp lib/CPAN/Exception/blocked_urllist.pm blib/lib/CPAN/Exception/blocked_urllist.pm
+cp lib/CPAN/CacheMgr.pm blib/lib/CPAN/CacheMgr.pm
+cp lib/CPAN/Exception/yaml_not_installed.pm blib/lib/CPAN/Exception/yaml_not_installed.pm
+cp lib/CPAN/Version.pm blib/lib/CPAN/Version.pm
+cp lib/CPAN/Complete.pm blib/lib/CPAN/Complete.pm
+cp lib/CPAN/Kwalify/distroprefs.dd blib/lib/CPAN/Kwalify/distroprefs.dd
+cp lib/CPAN/FirstTime.pm blib/lib/CPAN/FirstTime.pm
+cp lib/CPAN/Debug.pm blib/lib/CPAN/Debug.pm
+cp lib/CPAN/Distrostatus.pm blib/lib/CPAN/Distrostatus.pm
+cp lib/CPAN/FTP.pm blib/lib/CPAN/FTP.pm
+cp lib/CPAN/Exception/RecursiveDependency.pm blib/lib/CPAN/Exception/RecursiveDependency.pm
+cp lib/CPAN/Author.pm blib/lib/CPAN/Author.pm
+cp lib/CPAN/Index.pm blib/lib/CPAN/Index.pm
+cp lib/CPAN/Tarzip.pm blib/lib/CPAN/Tarzip.pm
+cp lib/CPAN/InfoObj.pm blib/lib/CPAN/InfoObj.pm
+cp lib/CPAN/HTTP/Client.pm blib/lib/CPAN/HTTP/Client.pm
+cp lib/CPAN/Admin.pm blib/lib/CPAN/Admin.pm
+cp lib/CPAN/Exception/yaml_process_error.pm blib/lib/CPAN/Exception/yaml_process_error.pm
+cp lib/CPAN/Mirrors.pm blib/lib/CPAN/Mirrors.pm
+cp lib/CPAN/Plugin/Specfile.pm blib/lib/CPAN/Plugin/Specfile.pm
+cp lib/CPAN/Nox.pm blib/lib/CPAN/Nox.pm
+cp lib/CPAN/Module.pm blib/lib/CPAN/Module.pm
+cp lib/CPAN/URL.pm blib/lib/CPAN/URL.pm
+cp lib/CPAN/Distribution.pm blib/lib/CPAN/Distribution.pm
+cp lib/App/Cpan.pm blib/lib/App/Cpan.pm
+cp lib/CPAN/HTTP/Credentials.pm blib/lib/CPAN/HTTP/Credentials.pm
+cp lib/CPAN/Distroprefs.pm blib/lib/CPAN/Distroprefs.pm
+cp lib/CPAN/Shell.pm blib/lib/CPAN/Shell.pm
+cp lib/CPAN/FTP/netrc.pm blib/lib/CPAN/FTP/netrc.pm
+cp lib/CPAN/LWP/UserAgent.pm blib/lib/CPAN/LWP/UserAgent.pm
+cp lib/CPAN/Prompt.pm blib/lib/CPAN/Prompt.pm
+cp lib/CPAN/DeferredCode.pm blib/lib/CPAN/DeferredCode.pm
+cp lib/CPAN/Kwalify/distroprefs.yml blib/lib/CPAN/Kwalify/distroprefs.yml
+cp lib/CPAN/API/HOWTO.pod blib/lib/CPAN/API/HOWTO.pod
+cp lib/CPAN/Kwalify.pm blib/lib/CPAN/Kwalify.pm
+cp lib/CPAN/HandleConfig.pm blib/lib/CPAN/HandleConfig.pm
+cp lib/CPAN.pm blib/lib/CPAN.pm
+cp lib/CPAN/Bundle.pm blib/lib/CPAN/Bundle.pm
+cp lib/CPAN/Queue.pm blib/lib/CPAN/Queue.pm
+cp lib/CPAN/Plugin.pm blib/lib/CPAN/Plugin.pm
+cp scripts/cpan-mirrors blib/script/cpan-mirrors
+"/usr/bin/perl" -MExtUtils::MY -e 'MY->fixin(shift)' -- blib/script/cpan-mirrors
+cp scripts/cpan blib/script/cpan
+"/usr/bin/perl" -MExtUtils::MY -e 'MY->fixin(shift)' -- blib/script/cpan
+Manifying 2 pod documents
+Manifying 16 pod documents
+  ANDK/CPAN-2.14.tar.gz
+  /usr/bin/make -- OK
+Running make test
+PERL_DL_NONLAZY=1 "/usr/bin/perl" "-MExtUtils::Command::MM" "-MTest::Harness" "-e" "undef *Test::Harness::Switches; test_harness(0, 'blib/lib', 'blib/arch')" t/*.t
+t/00signature.t ............... WARNING: This key is not certified with a trusted signature!
+Primary key fingerprint: 50A0 ED26 8AA2 95BD 2CA0  411E EC80 39F0 A317 C15D
+t/00signature.t ............... ok
+t/01loadme.t .................. ok
+t/02nox.t ..................... ok
+t/03pkgs.t .................... ok
+t/04clean_load.t .............. ok
+t/10version.t ................. ok
+t/11mirroredby.t .............. ok
+t/12cpan.t .................... ok
+t/13tarzip.t .................. ok
+t/14forkbomb.t ................ skipped: test only run when called with --doit
+t/30shell.t ................... skipped: no Expect, maybe try env CPAN_RUN_SHELL_TEST_WITHOUT_EXPECT=1
+t/31sessions.t ................ skipped: Yaml module [YAML] not installed
+t/41distribution.t ............ skipped: No yaml module installed
+t/42distroprefs.t ............. skipped: YAML required
+t/43distroprefspref.t ......... ok
+t/44cpanmeta.t ................ ok
+t/50pod.t ..................... skipped: Test::Pod 1.00 required for testing POD
+t/51pod.t ..................... ok
+t/52podcover.t ................ skipped: Test::Pod::Coverage 0.18 required for testing pod coverage
+t/60credentials.t ............. ok
+t/70_critic.t ................. skipped: Test::Perl::Critic only run when AUTHOR_TEST set
+t/71_minimumversion.t ......... skipped: running MinimumVersion test only run when AUTHOR_TEST set
+t/97-compile.t ................ ok
+t/97-cpanpm_output_hook.t ..... 1/60 Loading internal null logger. Install Log::Log4perl for logging messages
+t/97-cpanpm_output_hook.t ..... ok
+t/97-expand_filenames.t ....... 1/? Loading internal null logger. Install Log::Log4perl for logging messages
+t/97-expand_filenames.t ....... ok
+t/97-install_hack.t ........... ok
+t/97-mock.t ................... ok
+t/97-process_options.t ........ ok
+t/97-process_setup_options.t .. ok
+t/97-return_values.t .......... ok
+All tests successful.
+Files=30, Tests=439, 15 wallclock secs ( 0.12 usr  0.02 sys +  8.06 cusr  0.46 csys =  8.66 CPU)
+Result: PASS
+  ANDK/CPAN-2.14.tar.gz
+  /usr/bin/make test -- OK
+Running make install
+Manifying 2 pod documents
+Manifying 16 pod documents
+Installing /usr/local/share/perl/5.22.1/CPAN.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Tarzip.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Shell.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Module.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Debug.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Version.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Kwalify.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/InfoObj.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Prompt.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Mirrors.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Author.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Plugin.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/FirstTime.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Distrostatus.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Nox.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/CacheMgr.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/HandleConfig.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Distroprefs.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Distribution.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Queue.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/FTP.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Admin.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/DeferredCode.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/URL.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Complete.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Index.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Bundle.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Kwalify/distroprefs.yml
+Installing /usr/local/share/perl/5.22.1/CPAN/Kwalify/distroprefs.dd
+Installing /usr/local/share/perl/5.22.1/CPAN/FTP/netrc.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/API/HOWTO.pod
+Installing /usr/local/share/perl/5.22.1/CPAN/Exception/blocked_urllist.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Exception/RecursiveDependency.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Exception/yaml_not_installed.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Exception/yaml_process_error.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/Plugin/Specfile.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/HTTP/Credentials.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/HTTP/Client.pm
+Installing /usr/local/share/perl/5.22.1/CPAN/LWP/UserAgent.pm
+Installing /usr/local/share/perl/5.22.1/App/Cpan.pm
+Installing /usr/local/man/man1/cpan-mirrors.1p
+Installing /usr/local/man/man1/cpan.1p
+Installing /usr/local/man/man3/CPAN::Distroprefs.3pm
+Installing /usr/local/man/man3/CPAN::HandleConfig.3pm
+Installing /usr/local/man/man3/CPAN::Mirrors.3pm
+Installing /usr/local/man/man3/CPAN::API::HOWTO.3pm
+Installing /usr/local/man/man3/CPAN::FirstTime.3pm
+Installing /usr/local/man/man3/CPAN::Queue.3pm
+Installing /usr/local/man/man3/CPAN::Admin.3pm
+Installing /usr/local/man/man3/CPAN::Nox.3pm
+Installing /usr/local/man/man3/CPAN::Plugin.3pm
+Installing /usr/local/man/man3/App::Cpan.3pm
+Installing /usr/local/man/man3/CPAN::Tarzip.3pm
+Installing /usr/local/man/man3/CPAN::Kwalify.3pm
+Installing /usr/local/man/man3/CPAN::Debug.3pm
+Installing /usr/local/man/man3/CPAN::Version.3pm
+Installing /usr/local/man/man3/CPAN::Plugin::Specfile.3pm
+Installing /usr/local/man/man3/CPAN.3pm
+Installing /usr/local/bin/cpan-mirrors
+Installing /usr/local/bin/cpan
+Appending installation info to /usr/local/lib/x86_64-linux-gnu/perl/5.22.1/perllocal.pod
+  ANDK/CPAN-2.14.tar.gz
+  /usr/bin/make install  -- OK
+
+cpan[2]> reload cpan
+(CPAN..........................................v2.14)(CPAN::Author..........v5.5002)(CPAN::CacheMgr.........v5.5002)(CPAN::Complete......v5.5001)(CPAN::Debug.v5.5001)(CPAN::DeferredCode.v5.50)(CPAN::Distribution........................................................................................................v2.12)(CPAN::Distroprefs...................................................v6.0001)(CPAN::Distrostatus......v5.5)(CPAN::Exception::RecursiveDependency..v5.5)(CPAN::Exception::yaml_not_installed..v5.5)(CPAN::FTP..................v5.5007)(CPAN::FTP::netrc.....v1.01)(CPAN::HandleConfig.....................v5.5007)(CPAN::Index...........v2.12)(CPAN::InfoObj..........v5.5)(CPAN::LWP::UserAgent....v1.9601)(CPAN::Module......................................v5.5002)(CPAN::Prompt..v5.5)(CPAN::Queue..............v5.5002)(CPAN::Shell.....................................................................v5.5006)(CPAN::Tarzip...........v5.5012)(CPAN::Version........v5.5003)
+445 subroutines redefined
+
+Terminal does not support AddHistory.
+
+cpan shell -- CPAN exploration and modules installation (v2.14)
+Enter 'h' for help.
+
+cpan[3]> Terminal does not support GetHistory.
+Lockfile removed.
+
+
+root@nas:/var/www/repos/svn/play/hooks# cpanm SVNPlus::TagProtect
+--> Working on SVNPlus::TagProtect
+Fetching http://www.cpan.org/authors/id/J/JP/JPIETRAS/SVNPlus-TagProtect-3.17.tar.gz ... OK
+Configuring SVNPlus-TagProtect-3.17 ... OK
+==> Found dependencies: Sysadm::Install, Text::Glob
+--> Working on Sysadm::Install
+Fetching http://www.cpan.org/authors/id/M/MS/MSCHILLI/Sysadm-Install-0.48.tar.gz ... OK
+Configuring Sysadm-Install-0.48 ... OK
+==> Found dependencies: Log::Log4perl, File::Which, Term::ReadKey
+--> Working on Log::Log4perl
+Fetching http://www.cpan.org/authors/id/M/MS/MSCHILLI/Log-Log4perl-1.48.tar.gz ... OK
+Configuring Log-Log4perl-1.48 ... OK
+Building and testing Log-Log4perl-1.48 ... OK
+Successfully installed Log-Log4perl-1.48
+--> Working on File::Which
+Fetching http://www.cpan.org/authors/id/P/PL/PLICEASE/File-Which-1.21.tar.gz ... OK
+Configuring File-Which-1.21 ... OK
+Building and testing File-Which-1.21 ... OK
+Successfully installed File-Which-1.21
+--> Working on Term::ReadKey
+Fetching http://www.cpan.org/authors/id/J/JS/JSTOWE/TermReadKey-2.37.tar.gz ... OK
+Configuring TermReadKey-2.37 ... OK
+Building and testing TermReadKey-2.37 ... OK
+Successfully installed TermReadKey-2.37
+Building and testing Sysadm-Install-0.48 ... OK
+Successfully installed Sysadm-Install-0.48
+--> Working on Text::Glob
+Fetching http://www.cpan.org/authors/id/R/RC/RCLAMP/Text-Glob-0.10.tar.gz ... OK
+/bin/tar: Ignoring unknown extended header keyword 'LIBARCHIVE.creationtime'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'LIBARCHIVE.creationtime'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'LIBARCHIVE.creationtime'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'LIBARCHIVE.creationtime'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'LIBARCHIVE.creationtime'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'LIBARCHIVE.creationtime'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.dev'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.ino'
+/bin/tar: Ignoring unknown extended header keyword 'SCHILY.nlink'
+Configuring Text-Glob-0.10 ... OK
+Building and testing Text-Glob-0.10 ... OK
+Successfully installed Text-Glob-0.10
+Building and testing SVNPlus-TagProtect-3.17 ... OK
+Successfully installed SVNPlus-TagProtect-3.17
+6 distributions installed
