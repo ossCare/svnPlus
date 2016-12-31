@@ -5,7 +5,7 @@ What this software does is to allow subversion admin to control "taged" subversi
 This insures, for example, that the source code for a deployment, say release 1.3.7, is not changed after its release.
 
 
-SVNPlus-TagProtect version 4.17.0
+SVNPlus-TagProtect version 3.17.0
 =================================
 
 The README is used to introduce the module and provide instructions on
