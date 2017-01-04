@@ -1,0 +1,70 @@
+#! /usr/bin/env python
+
+#
+#  Copyright 2015,2016 Joseph C. Pietras
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+from __future__ import print_function
+import os.path
+import sys
+import svnplus
+NAME = os.path.basename(__file__)
+# normally this very low level debug is not wanted so set these debug
+# flags to zero but you can set any value you like for debugging.
+# if either is non-zero the commit will _never_ succeed.
+# NOTE: there is _no way_ to set/pass these in the environment, mod_svn
+#       does not allow it.  Setting here, though, does not require much
+#       editing.  These two control very low level debugging output and
+#       _cannot_ be correctly implmented using the configuration file.
+debugCLIParse = 0 # 0 - 4
+debugCFGParse = 0 # 0 - 6
+
+# build the tagproject object and get back the debug level from
+# configuration file (or, in NON-PRODUCTION mode, optionally from the
+# command line)
+debugLVL = svnplus.tag_protect(debugCLIParse, debugCFGParse, sys.argv)
+
+# if the commit does not impact protected directories just allow it
+if svnplus.simply_allow() == True:
+    # If the commit is ok, because it does impact protected directories,
+    # but debug is enabled then this script must exit NON-zero, which
+    # causes the commit to fail.  Because the commit fails subversion
+    # will send standard error to the client application.  This is needed
+    # because a zero exit causes the STDERR to be squashed.  If any actual
+    # errors occured, "svnplus.simplyallow()" will have printed them to
+    # standard error and would have returned False.
+    if debugLVL > 0:
+        sys.stderr.write('%s: simply_allow succeeded but script exiting 1 (FAIL) because debug is enabled.\n'%NAME)
+        exit(1)
+    exit(0)
+
+# commit does impact protected directories, so see if it should be allowed
+if svnplus.allow_commit() == True:
+    # if the commit is ok, i.e.: it is allowed, but debug is wanted
+    # then this script must exit NON-zero, which causes the commit to
+    # fail but the client gets the standard error.  A zero exit causes
+    # the STDERR to be squashed.    If any "True" errors occurred,
+    # "svnplus.allowcommit()" will have printed them to standard error and would
+    # have returned False.
+    if debugLVL > 0:
+        sys.stderr.write('%s: allow_commit succeeded but script exiting 1 (FAIL) because debug is enabled.\n'%NAME)
+        exit(1)
+    exit(0)
+
+# commit is not allowed, "svnplus.allowcommit" has already output the reason
+if debugLVL > 0:
+    sys.stderr.write('%s: exit 1 (FAIL) this is a true prevent commit condition.\n'%NAME)
+
+exit(1)
