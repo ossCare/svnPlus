@@ -55,7 +55,7 @@ usage: ${NAME} version
         --verbose   | -v  enable
         --noverbose | -V  disable
        version            the version being packed up
-                          for example: 3.18.0
+                          for example: 3.18.1
 
     This script will cd to:
       ${DEF_TARDIR}

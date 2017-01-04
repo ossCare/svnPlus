@@ -1,4 +1,4 @@
-SVNPlus-TagProtect version 3.18.0
+SVNPlus-TagProtect version 3.18.1
 =================================
 
 NOTE: this is the last release of the PERL object code.  All subsequent

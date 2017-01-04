@@ -26,7 +26,7 @@ import subprocess
 import time
 import pprint
 
-VERSION = '3.18.0'
+VERSION = '3.18.1'
 
 # FATAL ERROR
 exitFatalErr = 1

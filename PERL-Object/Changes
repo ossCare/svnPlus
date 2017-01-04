@@ -1,4 +1,8 @@
 Revision history for Perl extension SVNPlus::TagProtect.
+3.18.1  Wed Jan  4 17:43:55 2017
+	- changed minor number to ".1" needed in order to upload to CPAN due to
+          previous upload failing, but no code changes.
+
 3.18.0  Wed Jan  4 17:21:11 2017
 	- last PERL release, one minor bug fix, some minor i/o fixes, remove unused code.
 

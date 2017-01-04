@@ -5,7 +5,7 @@ What this software does is to allow subversion admin to control "tagged" subvers
 This insures, for example, that the source code for a deployment, say release 1.3.7, is not changed after its release.
 
 
-SVNPlus-TagProtect version 3.18.0
+SVNPlus-TagProtect version 3.18.1
 =================================
 The PERL code has been updated with minor bug fixes found while porting the code to Python.
 This is the last updates to the PERL code and all futher updates will be with in the Python line.

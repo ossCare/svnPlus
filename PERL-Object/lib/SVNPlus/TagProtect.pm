@@ -6,7 +6,7 @@ use warnings;
 
 our @ISA = qw();
 
-our $VERSION = '3.18.0';
+our $VERSION = '3.18.1';
 
 # Preloaded methods go here.
 use autodie;                              # automatic die if file fails to open
