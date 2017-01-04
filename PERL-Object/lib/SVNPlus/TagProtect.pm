@@ -1,12 +1,12 @@
 package SVNPlus::TagProtect;
 
-use 5.008004;
+use 5.010000;
 use strict;
 use warnings;
 
 our @ISA = qw();
 
-our $VERSION = '3.17.0';
+our $VERSION = '3.18.0';
 
 # Preloaded methods go here.
 use autodie;                              # automatic die if file fails to open
