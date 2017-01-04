@@ -44,8 +44,8 @@ t/SVNPlus-TagProtect.t
 
 
 let DEF_VERBOSE=1                       || true; let VERBOSE=-1 || true;
-    DEF_TDIR="${DIRE}/../PERL-Object"
-    DEF_TDIR="$(cd ${DEF_TDIR} 2>/dev/null;  echo ${PWD})";
+    DEF_TARDIR="${DIRE}/../PERL-Object"
+    DEF_TARDIR="$(cd ${DEF_TARDIR} 2>/dev/null;  echo ${PWD})";
     VERSION='not.defined.yet'
 
 USAGE="
@@ -58,7 +58,7 @@ usage: ${NAME} version
                           for example: 3.18.0
 
     This script will cd to:
-      ${DEF_TDIR}
+      ${DEF_TARDIR}
 
     From there it looks for this set of files:
       ${LIST}
@@ -71,6 +71,8 @@ usage: ${NAME} version
     and the directory
         SVNPlus-TagProtect-${VERSION}
     is removed
+
+    The tarball ends up in the directory you are workging from.
 ";
 
 if (( ${#} == 0)); then set -- --help; fi;
@@ -98,7 +100,7 @@ done;
 # LEAVE: COMMAND LINE OPTIONS PARSING
 
 if (( VERBOSE    < 0 )); then let VERBOSE=${DEF_VERBOSE} || true; fi;
-if [[ "${TDIR:-not set}" = "not set" ]]; then TDIR="${DEF_TDIR}"; fi;
+if [[ "${TARDIR:-not set}" = "not set" ]]; then TARDIR="${DEF_TARDIR}"; fi;
 if [[ "${VERSION:-not set}" = "not set" ]]; then
     (
        echo "${NAME}: no version supplied";
@@ -107,24 +109,27 @@ if [[ "${VERSION:-not set}" = "not set" ]]; then
     exit 1;
 fi;
 
-set -e;
-cd "${TDIR}"
-if (( VERBOSE )); then
-    (
-        echo ${NAME}: working from ${PWD};
-    ) 1>&2;
-fi;
+(
+    set -e;
+    cd "${TARDIR}" || exit 1;
+    if (( VERBOSE )); then
+        (
+            echo ${NAME}: working from ${PWD};
+        ) 1>&2;
+    fi;
 
-e=0;
-for file in ${LIST}; do
-   if [[ -f "${file}" ]]; then
-       if (( VERBOSE )); then ( echo packaging: ${file}; ) 1>&2; fi;
-   else
-       if (( VERBOSE )); then ( echo ${file} is missing! ) 1>&2; fi;
-       e=1;
-   fi;
-done
-if (( e )); then exit 1; fi;
+    e=0;
+    for file in ${LIST}; do
+       if [[ -f "${file}" ]]; then
+           if (( VERBOSE )); then ( echo packaging: ${file}; ) 1>&2; fi;
+       else
+           if (( VERBOSE )); then ( echo ${file} is missing! ) 1>&2; fi;
+           e=1;
+       fi;
+    done
+    if (( e )); then exit 1; fi;
+) || exit 1;
+
 /bin/rm -rf "SVNPlus-TagProtect-${VERSION}";
 mkdir "SVNPlus-TagProtect-${VERSION}" || exit 1;
 VVVFLAG="";
@@ -132,9 +137,10 @@ VVFLAG="";
 VFLAG="";
 if (( VERBOSE )); then VFLAG='v'; fi;
 
-tar c${VVVFLAG}f - ${LIST} | ( cd "SVNPlus-TagProtect-${VERSION}" || exit 1; tar x${VVFLAG}f - || exit 1;) || exit 1;
+( set -e; cd "${TARDIR}"; tar c${VVVFLAG}f - ${LIST} || exit 1;) |\
+( cd "SVNPlus-TagProtect-${VERSION}" || exit 1; tar x${VVFLAG}f - ) || exit 1;
 
 tar c${VFLAG}zf "SVNPlus-TagProtect-${VERSION}.tar.gz" "SVNPlus-TagProtect-${VERSION}" || exit 1;
 /bin/rm -rf "SVNPlus-TagProtect-${VERSION}"
-ls -ld "SVNPlus-TagProtect-${VERSION}.tar.gz"
+ls -ld "${PWD}/SVNPlus-TagProtect-${VERSION}.tar.gz"
 exit;
