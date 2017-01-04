@@ -1,0 +1,140 @@
+#! /bin/bash -norc
+NAME=${0##*/};
+DIRE=${0%/*}; if [[ -z "${DIRE}" ]]; then DIRE="."; fi;
+              if [[ "${DIRE}" = "${NAME}" ]]; then DIRE="."; fi;
+DIRE="$(cd ${DIRE}; echo ${PWD})";
+TAB="   "; # must be a TAB not a run of spaces
+unset CDPATH; # because when bash (I love it!) is involved, CDPATH can hose up a subshell/make, etc.
+unset BASH_ENV;
+unset ENV;       # unset the ENV environmental variable so any
+                 # Korn shells below this line do not attempt to
+                 # source it. Ditto for BASH_ENV
+# the environment variable
+#    ECHO
+# is examined, if it is TRUE/YES/ON (case insensitve)
+# then turn on shell debugging
+case ${ECHO:-null} in
+     [Tt][Rr][Uu][Ee] ) set -x ;;
+     [Yy][Ee][Ss]     ) set -x ;;
+     [Oo][Nn]         ) set -x ;;
+esac
+
+# various h2xs command tried
+#h2xs -AX -b 5.0.0                         SVNPlus::TagProtect
+#h2xs -AX -b 5.16.3                        SVNPlus::TagProtect
+#h2xs -AX -b 5.6.0                         SVNPlus::TagProtect
+#h2xs -AX -b 5.6.0 -v 3.03 --skip-exporter SVNPlus::TagProtect
+#h2xs -AX -b 5.6.0 -v 3.03                 SVNPlus::TagProtect
+#h2xs -AX                                  SVNPlus::TagProtect
+#h2xs -AX -b 5.16.0 -v 3.04 --skip-exporter SVNPlus::TagProtect
+# for compatiblity with 32 bit Centos on "gus" machine
+# h2xs -AX -b 5.10.0 -v 3.07 --skip-exporter SVNPlus::TagProtect  THIS ONE WORKED BEST
+# figured lowest required
+# COMMAND='h2xs -AX -b 5.8.4 -v 3.08 --skip-exporter SVNPlus::TagProtect'
+
+LIST='
+Changes
+MANIFEST
+Makefile.PL
+README.md
+lib/SVNPlus/TagProtect.pm
+t/SVNPlus-TagProtect.t
+'
+
+
+
+let DEF_VERBOSE=1                       || true; let VERBOSE=-1 || true;
+    DEF_TDIR="${DIRE}/../PERL-Object"
+    DEF_TDIR="$(cd ${DEF_TDIR} 2>/dev/null;  echo ${PWD})";
+    VERSION='not.defined.yet'
+
+USAGE="
+usage: ${NAME} version
+
+        --help      | -h  get this printout
+        --verbose   | -v  enable
+        --noverbose | -V  disable
+       version            the version being packed up
+                          for example: 3.18.0
+
+    This script will cd to:
+      ${DEF_TDIR}
+
+    From there it looks for this set of files:
+      ${LIST}
+
+    Which are repackaged into a directory named:
+        SVNPlus-TagProtect-${VERSION}
+    which is then packed in to a tarball
+    named
+        SVNPlus-TagProtect-${VERSION}.tar.gz
+    and the directory
+        SVNPlus-TagProtect-${VERSION}
+    is removed
+";
+
+if (( ${#} == 0)); then set -- --help; fi;
+
+# ENTER: COMMAND LINE OPTIONS PARSING
+while [ ${#} -gt 0 ]; do
+
+    case ${1} in
+
+        --help | -h)     echo "${USAGE}"; exit 0;;
+        --run  | -r | -) : ;; # ignore it
+
+        -*) (
+               echo "";
+               echo "${NAME}: unknown argument: \"${1}\", aborting!";
+               echo "";
+           ) 1>&2;
+            exit 1;;
+
+         *) VERSION="${@}"; set -- junk2shift;;
+    esac;
+
+    shift; # remove the positional parameter that was just processed
+done;
+# LEAVE: COMMAND LINE OPTIONS PARSING
+
+if (( VERBOSE    < 0 )); then let VERBOSE=${DEF_VERBOSE} || true; fi;
+if [[ "${TDIR:-not set}" = "not set" ]]; then TDIR="${DEF_TDIR}"; fi;
+if [[ "${VERSION:-not set}" = "not set" ]]; then
+    (
+       echo "${NAME}: no version supplied";
+       echo "${NAME}: ABORTING!";
+    )  1>&2;
+    exit 1;
+fi;
+
+set -e;
+cd "${TDIR}"
+if (( VERBOSE )); then
+    (
+        echo ${NAME}: working from ${PWD};
+    ) 1>&2;
+fi;
+
+e=0;
+for file in ${LIST}; do
+   if [[ -f "${file}" ]]; then
+       if (( VERBOSE )); then ( echo packaging: ${file}; ) 1>&2; fi;
+   else
+       if (( VERBOSE )); then ( echo ${file} is missing! ) 1>&2; fi;
+       e=1;
+   fi;
+done
+if (( e )); then exit 1; fi;
+/bin/rm -rf "SVNPlus-TagProtect-${VERSION}";
+mkdir "SVNPlus-TagProtect-${VERSION}" || exit 1;
+VVVFLAG="";
+VVFLAG="";
+VFLAG="";
+if (( VERBOSE )); then VFLAG='v'; fi;
+
+tar c${VVVFLAG}f - ${LIST} | ( cd "SVNPlus-TagProtect-${VERSION}" || exit 1; tar x${VVFLAG}f - || exit 1;) || exit 1;
+
+tar c${VFLAG}zf "SVNPlus-TagProtect-${VERSION}.tar.gz" "SVNPlus-TagProtect-${VERSION}" || exit 1;
+/bin/rm -rf "SVNPlus-TagProtect-${VERSION}"
+ls -ld "SVNPlus-TagProtect-${VERSION}.tar.gz"
+exit;
