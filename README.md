@@ -1,8 +1,16 @@
 # svnPlus
 svn tag based protection mechanism
 
-What this software does is to allow subversion admin to control "taged" subversion folders so that they can no longer be modified.
+What this software does is to allow subversion admin to control "tagged" subversion folders so that they can no longer be modified.
 This insures, for example, that the source code for a deployment, say release 1.3.7, is not changed after its release.
+
+
+SVNPlus-TagProtect version 3.18.0
+=================================
+The PERL code has been updated with minor bug fixes found while porting the code to Python.
+This is the last updates to the PERL code and all futher updates will be with in the Python line.
+
+
 
 
 SVNPlus-TagProtect version 3.17.0
