@@ -43,3 +43,5 @@ it under the same terms as Perl itself, either Perl version 5.16.2 or,
 at your option, any later version of Perl 5 you may have available.
 
 
+The file InstallationSteps.txt shows the steps needed to install the program
+and the file svnplus-install.txt show the output of an installation.
