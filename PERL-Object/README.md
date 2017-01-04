@@ -1,5 +1,8 @@
-SVNPlus-TagProtect version 3.17.0
+SVNPlus-TagProtect version 3.18.0
 =================================
+
+NOTE: this is the last release of the PERL object code.  All subsequent
+      development will be with the Python object.
 
 The README is used to introduce the module and provide instructions on
 how to install the module, any machine dependencies it may have (for
@@ -32,8 +35,6 @@ This module requires these other modules and libraries:
    Cwd
 
 COPYRIGHT AND LICENCE
-
-Put the correct copyright and licence information here.
 
 Copyright (C) 2015 by Joseph C. Pietras
 
