@@ -1,3 +1,19 @@
+#
+#  Copyright 2015,2016,2017 Joseph C. Pietras
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
 package SVNPlus::TagProtect;
 
 use 5.010000;
@@ -244,56 +260,6 @@ my $AddingArchiveDir = sub {    # AddingArchiveDir
     return $r;
 };    # AddingArchiveDir
 
-my $AddingToArchiveDir = sub {    # AddingToArchiveDir
-    my $parent   = shift;         # this does NOT end with SLASH, protected "parent" directory
-    my $allsub   = shift;         # this does NOT end with SLASH, subdirectories (as a path containing all the "parts" of the path)
-    my $archive  = shift;         # name of the archive directory(s) for this configuration N-Tuple
-    my $artifact = shift;         # may or may not end with SLASH - indicates files or directory
-    my $r        = 0;             # assume failure
-    my $sstr;                     # subdirectory string - used for parsing $allsub into the @suball array
-    my @suball;                   # hold the parts of $allsub, $allsub can be a glob
-    my $glob;                     # build up from the $allsub string split apart into @suball
-    my $dir = 0;                  # assume artifact is a file
-    local $_;
-
-    $_ = $artifact;
-    $dir = 1 if ( m@/$@ );
-
-    if ( $dir )
-    {
-        $sstr = $allsub;          # start with the subdirectory config value
-        print STDERR "AddingToArchiveDir: \$sstr=$sstr\n" if ( $CLIC_DEBUG > 5 );
-        $sstr =~ s@^${parent}@@;    # remove the parent with FIRST SLASH
-        @suball = split( '/', $sstr );
-
-        # walk the longest path to the shortest path
-        while ( @suball > 0 )
-        {
-            $glob = $parent . join( "/", @suball );
-            $glob .= "/" if ( !( $glob =~ '/$' ) );
-            $glob .= $archive . "/?*/";
-            if ( match_glob( $glob, $artifact ) )
-            {
-                print STDERR "AddingToArchiveDir: ( match_glob( $glob, $artifact ) = YES\n" if ( $CLIC_DEBUG > 5 );
-                $r = 1;             # we have a match
-                last;
-            }
-            elsif ( $CLIC_DEBUG > 5 )
-            {
-                print STDERR "AddingToArchiveDir: ( match_glob( $glob, $artifact ) = NO\n" if ( $CLIC_DEBUG > 5 );
-            }
-            pop @suball;
-        }
-    }
-    elsif ( $CLIC_DEBUG > 5 )
-    {
-        print STDERR "AddingToArchiveDir: $artifact is a FILE\n";
-    }
-
-    print STDERR "AddingToArchiveDir: return $r\t\$artifact=$artifact\n" if ( $CLIC_DEBUG > 5 );
-    return $r;
-};    # AddingToArchiveDir
-
 my $AddingSubDir = sub {    # AddingSubDir
     my $parent   = shift;    # this does NOT end with SLASH, protected "parent" directory
     my $allsub   = shift;    # this does NOT end with SLASH, subdirectory(s) (as a path containing all the "parts" of the path)
@@ -354,12 +320,20 @@ my $ArtifactUnderProtectedDir = sub {    # ArtifactUnderProtectedDir
     for $tupleKey ( keys %{ cfgHofH } )
     {
         $parent = $cfgHofH{ $tupleKey }{ $TAGpKEY };
+        if ( $CLIC_DEBUG > 8 )
+        {
+            print STDERR "ArtifactUnderProtectedDir: \$tupleKey>>$tupleKey<<, \$parent>>$parent<<\n";
+        }
         if ( &$IsUnderProtection( $parent, $artifact ) == 1 )
         {
             $returnKey   = $tupleKey;
             $isProtected = 1;
             last;
         }
+    }
+    if ( $CLIC_DEBUG > 8 )
+    {
+        print STDERR "ArtifactUnderProtectedDir: return: \$isProtected>>$isProtected<<, \$returnKey>>$returnKey<<\n";
     }
     return ( $isProtected, $returnKey );
 };    # ArtifactUnderProtectedDir
@@ -499,6 +473,12 @@ my $ValidateSubDirOrDie = sub {    #  ValidateSubDirOrDie
 
     # a BLANK regex means that the tag directory does not allow _any_
     # project names, hey that's ok!  if so there is no need to test
+    if ( $CLIC_DEBUG > 8 )
+    {
+        print STDERR "ValidateSubDirOrDie: enter: pDire=\"$pDire\"\n";
+        print STDERR "ValidateSubDirOrDie: enter: globc=\"$globc\"\n";
+        print STDERR "ValidateSubDirOrDie: enter: lline=\"$lline\"\n";
+    }
     if ( $globc ne "" )
     {
         $leftP = $globc;
@@ -539,6 +519,10 @@ my $ValidateSubDirOrDie = sub {    #  ValidateSubDirOrDie
         }
         print STDERR "ValidateSubDirOrDie: done          \$_=$_\n" if ( $CLIC_DEBUG > 5 );
         $globc = $leftP . $_;    # the "backslash" is not allowed, it can only lead to problems!
+    }
+    else
+    {
+        print STDERR "ValidateSubDirOrDie: globc=\"$globc\", no modifications\n" if ( $CLIC_DEBUG > 8 );
     }
     print STDERR "ValidateSubDirOrDie: return $globc\n" if ( $CLIC_DEBUG > 5 );
     return $globc;               # possible modified (cleaned up)
@@ -632,7 +616,10 @@ my $PrintDefaultConfigOptionallyExit = sub {    # PrintDefaultConfigOptionallyEx
     }
     print $output "#\n";
     print $output "#  The parsing script will build an 'N-Tuple' from each\n";
-    print $output "#  ${VAR_TAGDIRE} variable.\n";
+    print $output "#  ${VAR_TAGDIRE} variable/value pair.  If the other\n";
+    print $output "#  variable/value pairs do not follow one of the\n";
+    print $output "#  ${VAR_TAGDIRE} variable/value pairs, they will\n";
+    print $output "#  default.\n";
     print $output "#\n";
     print $output "# Recognized variable/value pairs are:\n";
     print $output "#   These are for debugging and subversion\n";
@@ -640,7 +627,7 @@ my $PrintDefaultConfigOptionallyExit = sub {    # PrintDefaultConfigOptionallyEx
     print $output "#          ${VAR_SVNPATH}\t\t= path to svn\n";
     print $output "#          ${VAR_SVNLOOK}\t\t= path to svnlook\n";
     print $output "#   These make up an N-Tuple\n";
-    print $output "#          ${VAR_TAGDIRE}\t\t= /<path>\n";
+    print $output "#          ${VAR_TAGDIRE}\t= /<path>\n";
     print $output "#    e.g.: ${VAR_SUBDIRE}\t= /<path>/*\n";
     print $output "# or e.g.: ${VAR_SUBDIRE}\t= /<path>/*/*\n";
     print $output "#          ${VAR_MAKESUB}\t= '*' or '<user>, <user>, ...'\n";
@@ -1509,7 +1496,7 @@ my $ParseCFG = sub {    # ParseCFG # ENTER: parse config file
 
         # if the command line has set the debug higher than what it now is then it set back to the command line value
         $CLIF_DEBUG = $CLIC_DEBUG;                             # f_debug is now the actual value gotten from the parse
-        $CLIC_DEBUG = &$GetMax( $CLIF_DEBUG, $CLIF_DEBUG );    # use the max value to work with, usually c_debug
+        $CLIC_DEBUG = &$GetMax( $CLIF_DEBUG, $itmp );          # use the max value to work with, usually c_debug (aka: itmp == $CLIC_DEBUG)
     }
 
     # read the regular config file
@@ -1972,6 +1959,7 @@ sub SimplyAllow                            # ENTER: determine if we can simply a
                 last;
             }
         }
+        last if ( $justAllow == 0 );
     }
     if ( $CLIC_DEBUG > 1 )
     {
@@ -2148,7 +2136,7 @@ sub AllowCommit
         # Not attempting anything! What? That's impossible, something is wrong.
         elsif ( int( @add ) == 0 && int( @del ) == 0 )
         {
-            print STDERR "AllowCommit: the protected commit is IMPOSSIPLE\n" if ( $CLIC_DEBUG > 3 );
+            print STDERR "AllowCommit: the protected commit is IMPOSSIBLE\n" if ( $CLIC_DEBUG > 3 );
             $commit = &$SayImpossible();                                        # always returns 0
         }
     }
@@ -2293,10 +2281,18 @@ Joseph C. Pietras, E<lt>joseph.pietras@gmail.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2015 by Joseph C. Pietras
-
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.16.3 or,
-at your option, any later version of Perl 5 you may have available.
+   Copyright 2015,2016,2017 Joseph C. Pietras
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+ 
+       http://www.apache.org/licenses/LICENSE-2.0
+ 
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 
 =cut

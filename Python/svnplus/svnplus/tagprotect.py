@@ -1,5 +1,5 @@
 #
-#  Copyright 2015,2016 Joseph C. Pietras
+#  Copyright 2015,2016,2017 Joseph C. Pietras
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 #
 
 ################################################################################
-# This subversion hook originated in PERL and was later recoded in Python
+# This subversion hook originated in PERL and was later rewritten in Python
 ################################################################################
 from __future__ import print_function
 import sys
@@ -24,9 +24,8 @@ import re
 import fnmatch
 import subprocess
 import time
-import pprint
 
-VERSION = '3.18.1'
+VERSION = '3.19.0'
 
 # FATAL ERROR
 exitFatalErr = 1
@@ -166,7 +165,7 @@ def _is_under_protection(pDir, artifact): # {
                                           # pDir     -> protected (parent) directory
                                           # artifact -> to be added
     global CLIF_DEBUG
-    leftside = ''                   # left side of $artifact, length of $pDir
+    leftside = ''                   # left side of artifact, length of pDir
     r = False                       # returned value
     tmp = ''
     if CLIF_DEBUG > 7:
@@ -319,7 +318,7 @@ def _authorized(author, authOK, artifact, msgwords): # {
         print('{0}: ABORTING - tell the subversion administrator.'.format(PROGNAME), file=sys.stderr)
         sys.exit(exitFatalErr)
     else:
-        auth = authOK.split(str=',')
+        auth = authOK.split(',')
         for user in auth:
             user = re.sub('\s+', '', user)
             if user == author:
@@ -870,7 +869,7 @@ def _the_add_is_allowed(author, ADDlist): # {
             print('_the_add_is_allowed: Parent Dir:     pDire\t\t= {0}'.format(pDire), file=sys.stderr)
             print('_the_add_is_allowed: Sub "glob" Dir: sDire\t\t= {0}'.format(sDire), file=sys.stderr)
             print('_the_add_is_allowed: Archive Dir:    aDire\t\t= {0}'.format(aDire), file=sys.stderr)
-            print('_the_add_is_allowed: _authorized:     aMake\t\t= {0}'.format(aMake), file=sys.stderr)
+            print('_the_add_is_allowed: authorized:     aMake\t\t= {0}'.format(aMake), file=sys.stderr)
         # IN ORDER TO ENSURE CORRECTLY FIGURING OUT WHAT THE USER IS DOING TEST IN THIS ORDER:
         # 1) attempting to add to the Archive directory?
         # 2) attempting to add to a tag?
@@ -881,7 +880,7 @@ def _the_add_is_allowed(author, ADDlist): # {
         # 7) attempting to add a file that is not part of a tag?
         ###########################################################################################[
         # 1) ENTER: attempting to add to the Archive? {
-        if CLIF_DEBUG > 4:
+        if CLIF_DEBUG > 3:
             print('_the_add_is_allowed: TESTING -> ATTEMPT TO ADD TO AN ARCHIVE DIRECTORY? artifact="{0}"'.format(artifact), file=sys.stderr)
         if   sDire == "" and aDire == "":
             glob = ""                                  # no subdirectory, no archive directory name
@@ -895,7 +894,7 @@ def _the_add_is_allowed(author, ADDlist): # {
             if CLIF_DEBUG > 6:
                 print('_the_add_is_allowed: if _adding_archive_dir({0}, {1}, {2}, {3}) is the test to see if adding to an archive directory'.format(pDire, sDire, aDire, artifact), file=sys.stderr)
             if _adding_archive_dir(pDire, sDire, aDire, artifact) == True: #
-                if CLIF_DEBUG > 4:
+                if CLIF_DEBUG > 3:
                     print('_the_add_is_allowed: artifact="{0}" IS UNDER AN ARCHIVE DIRECTORY'.format(artifact), file=sys.stderr)
                 print('{0}: you can only move existing tags to an archive directory'.format(PROGNAME), file=sys.stderr)
                 print('{0}: commit failed, you cannot add anything to an existing archive directory!'.format(PROGNAME), file=sys.stderr)
@@ -904,10 +903,10 @@ def _the_add_is_allowed(author, ADDlist): # {
             # otherwise contine testing
         # 1) LEAVE: attempting to add to the Archive? }
         if commit == True:
-            if CLIF_DEBUG > 5:
+            if CLIF_DEBUG > 4:
                 print('_the_add_is_allowed: KEEP TESTING -> NOT ADDING TO AN ARCHIVE DIRECTORY WITH: artifact="{0}"'.format(artifact), file=sys.stderr)
         # 2) ENTER: attempting to add to a tag?
-            if CLIF_DEBUG > 4:
+            if CLIF_DEBUG > 3:
                 print('_the_add_is_allowed: TESTING -> ATTEMPT TO ADD A TAG? artifact="{0}"'.format(artifact), file=sys.stderr)
             if sDire == "":
                 glob = pDire+"/?*/"       # no subdirectory
@@ -919,66 +918,67 @@ def _the_add_is_allowed(author, ADDlist): # {
                 if CLIF_DEBUG > 6:
                     print('_the_add_is_allowed: if _tag_is_in_archive({0}, {1}) == True is the test to see if adding to an archive directory'.format(artifact, glob), file=sys.stderr)
                 if _tag_is_in_archive(artifact, aDire) == True:
-                    if CLIF_DEBUG > 4:
+                    if CLIF_DEBUG > 3:
                         print('_the_add_is_allowed: stop TESTING -> CANNOT ADD tag that already exists in the archive directory: artifact="{0}"'.format(artifact), file=sys.stderr)
                     print('{0}: you cannot add this tag because it already exists in an archive directory!'.format(PROGNAME), file=sys.stderr)
                     print('{0}: commit failed on: {1}'.format(PROGNAME, artifact), file=sys.stderr)
                     commit = False
                     break
                 # no problem - we are simply adding a tag
-                if CLIF_DEBUG > 4:
+                if CLIF_DEBUG > 3:
                     print('_the_add_is_allowed: stop TESTING -> THIS IS OK AND IS A NEW TAG artifact="{0}"'.format(artifact), file=sys.stderr)
         # 2) LEAVE: attempting to add to a tag?
             else: # if fnmatch.fnmatch(artifact, glob) == True: ][
-                if CLIF_DEBUG > 5:
+                if CLIF_DEBUG > 4:
                     print('_the_add_is_allowed: KEEP TESTING -> THIS IS NOT A NEW TAG artifact="{0}"'.format(artifact), file=sys.stderr)
         # 3) ENTER: attempting to add the _Archive directory_ itself?
-                if CLIF_DEBUG > 4:
+                if CLIF_DEBUG > 3:
                     print('_the_add_is_allowed: TESTING -> ATTEMPT TO ADD THE ARCHIVE DIRECTORY ITSELF? artifact="{0}"'.format(artifact), file=sys.stderr)
                 if aDire != "":
                     if CLIF_DEBUG > 6:
                         print('_the_add_is_allowed: if _adding_archive_dir({0}, {1}, {2}, {3}) == True '.format(pDire, sDire, aDire, artifact), end='', file=sys.stderr)
                         print('is the test to see if adding an archive directory', file=sys.stderr)
                     if _adding_archive_dir(pDire, sDire, aDire, artifact) == True:
-                        if CLIF_DEBUG > 4:
+                        if CLIF_DEBUG > 3:
                             print('_the_add_is_allowed: stop TESTING -> artifact="{0}" IS AN ARCHIVE DIRECTORY'.format(artifact), file=sys.stderr)
                         commit = _authorized(author, aMake, artifact, 'add an archive directory')
                         if commit == False:
                             break  # no need to continue
                         continue   # no need to futher test
         # 3) LEAVE: attempting to add the _Archive directory_ itself?
-                if CLIF_DEBUG > 5:
+                if CLIF_DEBUG > 4:
                     print('_the_add_is_allowed: KEEP TESTING -> NOT ADDING THE ARCHIVE DIRECTORY ITSELF WITH artifact="{0}"'.format(artifact), file=sys.stderr)
         # 4) ENTER: attempting to add a project directory?
-                if CLIF_DEBUG > 4:
+                if CLIF_DEBUG > 3:
                     print('_the_add_is_allowed: TESTING -> ATTEMPT TO ADD A SUB DIRECTORY? artifact="{0}"'.format(artifact), file=sys.stderr)
                 if CLIF_DEBUG > 6:
                     print('_the_add_is_allowed: if _adding_sub_dir({0}, {1}, {2}) == True '.format(pDire, sDire, artifact), end='', file=sys.stderr)
                     print('is the test to see if adding a sub directory', file=sys.stderr)
                 if _adding_sub_dir(pDire, sDire, artifact) == True:
-                    if CLIF_DEBUG > 4:
-                        print('_the_add_is_allowed: stop TESTING -> THIS IS A NEW PROJECT SUB DIRECTORY, calling _authorized artifact="{0}"'.format(artifact), file=sys.stderr)
+                    if CLIF_DEBUG > 3:
+                        print('_the_add_is_allowed: stop TESTING -> THIS IS A NEW PROJECT SUB DIRECTORY, calling _authorized(author="{0}", {1}="{2}", artifact="{3}")'.format(author, MAKEKEY, aMake, artifact),
+                              file=sys.stderr)
                     commit = _authorized(author, aMake, artifact, 'add a project (or sub) directory')
                     if commit == False:
                         break
                     continue   # no need to futher test
         # 4) LEAVE: attempting to add a project directory?
-                if CLIF_DEBUG > 5:
+                if CLIF_DEBUG > 4:
                     print('_the_add_is_allowed: KEEP TESTING -> NOT ATTEMPT TO ADD A SUB DIRECTORY WITH artifact="{0}"'.format(artifact), file=sys.stderr)
         # 5) ENTER: attempting to add the protected directory _itself_ ?
-                if CLIF_DEBUG > 4:
+                if CLIF_DEBUG > 3:
                     print('_the_add_is_allowed: TESTING -> ATTEMPT TO ADD THE PROTECTED DIRECTORY ITSELF? artifact="{0}"'.format(artifact), file=sys.stderr)
                 if CLIF_DEBUG > 6:
                     print('_the_add_is_allowed: if {0} == {1} is the test to see if adding a sub directory'.format(pDire+"/", artifact),  file=sys.stderr)
                 if pDire+"/" == artifact:     # trying to add the parent directory itself
-                    if CLIF_DEBUG > 4:
-                        print('_the_add_is_allowed: stop TESTING -> THIS IS A THE PROTECTED DIRECTORY, calling _authorized artifact="{0}"'.format(artifact), file=sys.stderr)
+                    if CLIF_DEBUG > 3:
+                        print('_the_add_is_allowed: stop TESTING -> THIS IS A THE PROTECTED DIRECTORY, calling _authorized(author="{0}", {1}="{2}", artifact="{3}")'.format(author, MAKEKEY, aMake, artifact), file=sys.stderr)
                     commit = _authorized(author, aMake, artifact, 'create the protected directory')
                     if commit == False:
                         break
                     continue   # no need to futher test
         # 5) LEAVE: attempting to add the protected directory _itself_ ?
-                if CLIF_DEBUG > 4:
+                if CLIF_DEBUG > 3:
                     print('_the_add_is_allowed: stop TESTING -> CANNOT ADD ARBITRARY DIRECTORY OR FILE TO A PROTECTED DIRECTORY artifact="{0}"'.format(artifact), file=sys.stderr)
                 print('{0}: you can only only add new tags'.format(PROGNAME), file=sys.stderr)
                 if artifact.endswith('$') == True:
@@ -993,7 +993,7 @@ def _the_add_is_allowed(author, ADDlist): # {
         # if fnmatch.fnmatch(artifact, glob) == True:  # ]
         ###########################################################################################]
     # for ]
-    if CLIF_DEBUG > 3:
+    if CLIF_DEBUG > 2:
         print('_the_add_is_allowed: return {0}'.format(commit), file=sys.stderr)
     return commit     # _the_add_is_allowed }
 
@@ -1202,8 +1202,8 @@ def _parse_cli(debugCLIParse, argv = []): # {
     ######################################
     # in production the PROGDIR directory is "</svndir>/hooks",
     # where /svndir is the absolute path to a subversion repository.
-    CLICONFIGF = '{0}/{1}.conf'.format(PROGDIRE, PROGNAME)    # "$PROGDIRE/$PROGNAME.conf";       # the name of the config file itself
-    CLIPRECONF = '{0}/{1}.conf.py'.format(PROGDIRE, PROGNAME) # "$PROGDIRE/$PROGNAME.conf.py";    # the name of the "pre-compiled" file
+    CLICONFIGF = '{0}/{1}.conf'.format(PROGDIRE, PROGNAME)    # "PROGDIRE/PROGNAME.conf";       # the name of the config file itself
+    CLIPRECONF = '{0}/{1}.conf.py'.format(PROGDIRE, PROGNAME) # "PROGDIRE/PROGNAME.conf.py";    # the name of the "pre-compiled" file
     ######################################
     total = 0                      # count number of requested actions
     ######################################
@@ -1548,7 +1548,7 @@ def _parse_cfg(debugCFGParse): # {
                 # 2) subdirectories
                 elif regvar_SUBDIRE.match(var) is not None:
                     val = _fix_path(val, 1, 0)    # strip 1st slash, can end up being BLANK, that's ok, add last slash
-                                                # if $val is BLANK it means the next tags directory to be protected
+                                                # if val is BLANK it means the next tags directory to be protected
                                                 # will have NO subdirectories
                     cfg[SUBfKEY] = val
                     if debugCFGParse > 3:
@@ -1784,7 +1784,7 @@ def simply_allow(): # {
             # if the artifact is under a protected directory we cannot simply allow
             isProtected = _is_under_protection(pDir, artifact)
             if CLIF_DEBUG > 2:
-                print('simply_allow: isProtected={0} artifact={1}'.format(isProtected, artifact), file=sys.stderr)
+                print('simply_allow: tupleKey={0}, isProtected={1} artifact={2}'.format(tupleKey, isProtected, artifact), file=sys.stderr)
             if isProtected == True:
                 justAllow = False                                       # nope, we gotta work!
                 break
@@ -1817,7 +1817,7 @@ def allow_commit(): # {
     tmp1 = ""          # used to push an array into @add or @del
     element = ""       # artifact to be committed, changed or whatever
     tmp2 = ""          # artifact to be committed, changed or whatever
-    if CLIF_DEBUG > 8:
+    if CLIF_DEBUG > 7:
         print("allow_commit: ENTER: listing array of commits", file=sys.stderr)
         dbgcnt = 0
         for element in CommitData:
@@ -1826,7 +1826,7 @@ def allow_commit(): # {
         print("allow_commit: LEAVE: listing array of commits", file=sys.stderr)
     dbgcnt = 0
     for element in CommitData:
-        if CLIF_DEBUG > 7:
+        if CLIF_DEBUG > 6:
             print("allow_commit: CommitData[{0}] = {1}".format(dbgcnt, element), file=sys.stderr)
             dbgcnt = dbgcnt + 1
         # get the next array element
@@ -1837,17 +1837,16 @@ def allow_commit(): # {
         change = re.sub(r'^(..)(  )(.+)$', r'\1', element)
         artifact = re.sub(r'^(..)(  )(.+)$', r'\3', element)
         change = re.sub(r' *$', r'', change)                          # remove trailing space, sometimes there is one
-        if CLIF_DEBUG > 7:
+        if CLIF_DEBUG > 6:
             print('allow_commit: change = "{0}"'.format(change), file=sys.stderr)
             print('allow_commit: artifact = "{0}"'.format(artifact), file=sys.stderr)
         [isProtected, tupleKey] = _artifact_under_protected_dir(artifact)
-        if CLIF_DEBUG > 3:
-            print('allow_commit: tupleKey = "{0}"'.format(tupleKey), file=sys.stderr)
-            print('allow_commit: isProtected = {0} artifact="{1}"'.format(isProtected, artifact), file=sys.stderr)
+        if CLIF_DEBUG > 2:
+            print('allow_commit: tupleKey = "{0}" isProtected = {1} artifact="{2}"'.format(tupleKey, isProtected, artifact), file=sys.stderr)
         if isProtected == True:
             if change == 'U' or change == '_U' or change == 'UU':
                 print('{0}: commit failed, modifications to protected directories or files is not allowed!'.format(PROGNAME), file=sys.stderr)
-                print('{0}: commit failed on: "${1}"'.format(PROGNAME, artifact), file=sys.stderr)
+                print('{0}: commit failed on: "{1}"'.format(PROGNAME, artifact), file=sys.stderr)
                 commit = False;
                 break
             else:
@@ -1868,8 +1867,8 @@ def allow_commit(): # {
                                  ok2add = False
                 else:    # THIS SHOULD NEVER HAPPEN AND IS HERE IN CASE SUBVERSION CHANGES
                         ## this is a safety check - just comment it out to keep on trunking
-                    print('${0}: commit failed, unknown value for change="{1}"'.format(PROGNAME, change), file=sys.stderr)
-                    print('${0}: commit failed on: {1}'.format(PROGNAME, element), file=sys.stderr)
+                    print('{0}: commit failed, unknown value for change="{1}"'.format(PROGNAME, change), file=sys.stderr)
+                    print('{0}: commit failed on: {1}'.format(PROGNAME, element), file=sys.stderr)
                     commit = False
                     break
                 if ok2add:
@@ -1889,27 +1888,27 @@ def allow_commit(): # {
     if commit == True:
         # See if attempting a delete only
         if len(addarts) == 0 and len(delarts) != 0:
-            if CLIF_DEBUG > 3:
+            if CLIF_DEBUG > 2:
                 print("allow_commit: the protected commit is a DELETE ONLY", file=sys.stderr)
             commit = _say_no_delete(artifact)    # always returns False
         # See if attempting an add only
         elif len(addarts) != 0 and len(delarts) == 0:
             author = _svn_get_author()
-            if CLIF_DEBUG > 3:
+            if CLIF_DEBUG > 2:
                 print("allow_commit: the protected commit is an ADD ONLY", file=sys.stderr)
             commit = _the_add_is_allowed(author, addarts)     # returns True or False
         # See if attempting an add and a delete, only do this if moving a tag to an archive directory
         elif len(addarts) != 0 and len(delarts) != 0:
             author = _svn_get_author();
-            if CLIF_DEBUG > 3:
+            if CLIF_DEBUG > 2:
                 print("allow_commit: the protected commit has both ADD AND DELETE", file=sys.stderr)
             commit = _the_move_is_allowed(element, author, addarts, delarts)     # returns True or False
         # Not attempting anything! What? That's impossible, something is wrong.
         elif len(addarts) == 0 and len(delarts) == 0:
-            if CLIF_DEBUG > 3:
+            if CLIF_DEBUG > 2:
                 print("allow_commit: the protected commit is IMPOSSIBLE", file=sys.stderr)
             commit = _say_impossible() # always returns False
-    if CLIF_DEBUG > 1:
+    if CLIF_DEBUG > 0:
         print("allow_commit: return {0}".format(commit), file=sys.stderr)
     return commit # allow_commit }
 
