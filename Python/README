@@ -1,0 +1,83 @@
+
+THIS PYTHON PACKAGE IS A hook FOR subversion AND IS NOT MEANT TO BE RUN
+FROM THE COMMAND LINE UNDER NORMAL USAGE.
+
+Very configurable, very easy to install.
+
+Prerequisites:
+        python2.7
+        subversion
+        apache/httpd - optional
+        mod_dav_svn  - optional if apache is installed
+Essentially you must have a working, accessible, subversion repository
+and python installed including pip.
+
+Install in 3 steps:
+    1. pip install svnplus
+    2. install the subversion pre-commit "hook"
+       2.1   cd to /path/to/subversion/repo/<repo-name>/hooks
+       2.2   put the file named "pre-commit", included with the module, there
+             2.2.1   do not add a ".py" extension or subversion will not
+                     run it.
+       2.3   chown apache:apache pre-commit (or the user/group running
+             subversion server daemon)
+       2.4   chmod 750 pre-commit
+    3. auto generate a default pre-commit.conf file (which you can then edit
+       as you like).
+       3.1  cd to /path/to/subversion/repo/<repo-name>/hooks
+       3.2  ./pre-commit --generate > pre-commit.conf
+       3.3  chown apache:apache pre-commit.conf (or the user/group running
+            subversion server daemon)
+       3.4  chmod 640 pre-commit.conf
+       3.5  edit pre-commit.conf and follow the comments''')
+
+SVNPlus TagProtect provides immutability (write once) protection for
+the "/tags" directory of a subversion repository. This is the default
+protected directory and everything is configurable.
+
+There are two parts included with to this package, a subversion python
+script named "pre-commit" and the svnplus python package.  Subversion
+requires that this software be invoked with the name "pre-commit",
+this is not changeable.
+
+The "pre-commit" script can, and should, be run from the command line
+for configuration testing and configuration debugging.
+
+Installation of this subversion hook is trivial, simply put "pre-commit"
+into the directory named hooks found under the directory where you
+have built the subversion repository. Make sure "pre-commit" is owned
+and executable by the owner of the httpd process or whatever daemon is
+serving subversion.
+
+The subversion administrator - or anyone with write permission on the
+subversion installation directory - can change the configuration.
+
+################################################################################
+# debug value and where svn, and svnlook, have been installed
+  DEBUG = 0
+  SVNPATH = "/usr/bin/svn"
+  SVNLOOK = "/usr/bin/svnlook"
+
+# The remaining configuration variables comprise an N-Tuple
+# and this set can be repeated as many times as wanted.
+  PROTECTED_PARENT = "/tags"    # a literal path
+  PROTECTED_PRJDIRS = "/tags/*" # literal, glob, or blank
+  PRJDIR_CREATORS = "*"         # or comma list, or blank
+  ARCHIVE_DIRECTORY = "Archive" # directory name
+################################################################################
+
+Do not configure directories with trailing slash characters, if you do
+they will simply be discarded anyway but to avoid confusion don't add
+them. The configuration of the protected project directories variable,
+PROTECTED_PRJDIRS, must start with the exact same path as its associated
+protected parent configuration, namely PROTECTED_PARENT. This is for
+security. Also for security any instances of /../ (or the like) found
+in the PROTECTED_PRJDIRS variable will be discarded.
+
+Each TAG_FOLDER value must be unique and two(2) or more of them cannot
+be subdirectories of each other. For example:
+
+  PROTECTED_PARENT = "/tags"
+  PROTECTED_PARENT = "/tags/foobar"
+
+will not be allowed.

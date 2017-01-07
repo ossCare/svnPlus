@@ -1,0 +1,3 @@
+include LICENSE
+include pre-commit
+include pre-commit.conf
