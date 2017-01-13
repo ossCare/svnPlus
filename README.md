@@ -1,4 +1,16 @@
 # svnPlus
+This project is being worked on in stages, which are
+* Tag Protect - done (LDAP user/group support to be added) _Python development will continue_
+* Web Config - _coding in progress_
+* Docker - produce a _*ready to run*_ downloadable docker container in 4 flavors
+  + Apache/Subversion
+  + Apache/Git
+  + Nginx/Subversion
+  + Nginx/Git
+
+
+
+# svnPlus Tagprotect 
 svn tag based protection mechanism
 
 What this software does is to allow subversion admin to control "tagged" subversion folders so that they can no longer be modified.
