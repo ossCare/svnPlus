@@ -942,7 +942,7 @@ def _the_add_is_allowed(author, ADDlist): # {
                         if CLIF_DEBUG > 3:
                             print('_the_add_is_allowed: stop TESTING -> artifact="{0}" IS AN ARCHIVE DIRECTORY'.format(artifact), file=sys.stderr)
                         commit = _authorized(author, aMake, artifact, 'add an archive directory')
-                        if commit == False:
+                        if commit == True:
                             break  # no need to continue
                         continue   # no need to futher test
         # 3) LEAVE: attempting to add the _Archive directory_ itself?
@@ -959,7 +959,7 @@ def _the_add_is_allowed(author, ADDlist): # {
                         print('_the_add_is_allowed: stop TESTING -> THIS IS A NEW PROJECT SUB DIRECTORY, calling _authorized(author="{0}", {1}="{2}", artifact="{3}")'.format(author, MAKEKEY, aMake, artifact),
                               file=sys.stderr)
                     commit = _authorized(author, aMake, artifact, 'add a project (or sub) directory')
-                    if commit == False:
+                    if commit == True:
                         break
                     continue   # no need to futher test
         # 4) LEAVE: attempting to add a project directory?
@@ -974,7 +974,7 @@ def _the_add_is_allowed(author, ADDlist): # {
                     if CLIF_DEBUG > 3:
                         print('_the_add_is_allowed: stop TESTING -> THIS IS A THE PROTECTED DIRECTORY, calling _authorized(author="{0}", {1}="{2}", artifact="{3}")'.format(author, MAKEKEY, aMake, artifact), file=sys.stderr)
                     commit = _authorized(author, aMake, artifact, 'create the protected directory')
-                    if commit == False:
+                    if commit == True:
                         break
                     continue   # no need to futher test
         # 5) LEAVE: attempting to add the protected directory _itself_ ?
