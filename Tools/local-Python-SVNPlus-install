@@ -4,7 +4,7 @@ NAME=${0##*/};
 DIRE=${0%/*}; if [[ -z "${DIRE}" ]]; then DIRE="."; fi;
               if [[ "${DIRE}" = "${NAME}" ]]; then DIRE="."; fi;
 DIRE="$(cd ${DIRE}; echo ${PWD})";
-TAB='	'; # must be a TAB not a run of spaces
+TAB="	"; # must be a TAB not a run of spaces
 unset CDPATH; # because when bash (I love it!) is involved, CDPATH can hose up a subshell/make, etc.
 unset BASH_ENV;
 unset ENV;       # unset the ENV environmental variable so any
@@ -33,7 +33,8 @@ T7=${TDIR}/${NAME}-$$-7;
 T8=${TDIR}/${NAME}-$$-8;
 T9=${TDIR}/${NAME}-$$-9;
 
-# create helper functions for the "trap" command
+LISTFILE='svnplus.list.txt';
+
 function RmTmps { # usage: RmTmps - will clear all the tmp files
     /bin/rm -f ${T0} ${T1} ${T2} ${T3} ${T4} ${T5} ${T6} ${T7} ${T8} ${T9}
 }
@@ -41,12 +42,14 @@ function RmTmps { # usage: RmTmps - will clear all the tmp files
 # this function will clean up temp files then exit
 function Exit { # usage: Exit N (N defaults to zero (0))
     __evalue=${?}; # grab the most recent exit status
+    if   (( ${#} !=  0  )); then
+        __evalue=${1};
+    fi;
     RmTmps;
-    if   (( ${#} ==  0  )); then
-            exit ${__evalue};
-    else
-            exit ${1};
-    fi
+    if (( __evalue )); then
+        echo "${NAME}: exit = ${__evalue} from pwd=$(/bin/pwd -P)" 1>&2;
+    fi;
+    exit ${__evalue};
 }
 
 trap "Exit 2" 1 2 15; # exit if hit with HUP, INT or TERM signals, you can extend this list
@@ -94,70 +97,57 @@ while (( ${#} > 0 )); do
     shift; # off the one just done
 done
 
-if (( VERBOSE    < 0 )); then let VERBOSE=${DEF_VERBOSE} || true; fi;
-if (( CLEAN      < 0 )); then let CLEAN=${DEF_CLEAN}     || true; fi;
-if (( XLEAN      < 0 )); then let XLEAN=${DEF_XLEAN}     || true; fi;
+if (( VERBOSE < 0 )); then VERBOSE=${DEF_VERBOSE}; fi;
+if (( CLEAN < 0 )); then CLEAN=${DEF_CLEAN}; fi;
+if (( XLEAN < 0 )); then XLEAN=${DEF_XLEAN}; fi;
+if (( XLEAN > 0 )); then CLEAN=1; fi;
 
-function Verbose {
-    if (( VERBOSE )); then echo ${NAME}: ${@} 1>&2; fi;
+cd "${GOTO}" || {
+    echo "${NAME}: cd failed to ${GOTO}" 1>&2;
+    Exit 1;
 }
 
-cd "${DIRE}" || exit 1;
-cd ../PERL-Object || exit 1;
-
-looping=1;
-
-while (( looping > 0 )); do
-    V_Changes="$(sed -n -e '/^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[ '"${TAB}"']/{' \
-           -e '   s@[ '"${TAB}"'].*@@p' \
-           -e '   q' \
-           -e '}' Changes)" || exit 1;
-    if [[ -z "${V_Changes}" ]]; then
-         VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed to get version from file Changes; exit 1;
-    fi;
-    V_TagProtect="$(egrep 'our[ '"${TAB}"']*\$VERSION' lib/SVNPlus/TagProtect.pm | sed -e 's@.*=@@' -e 's@"@@g' -e "s@'@@g" -e 's@;@@g' -e 's@[ '"${TAB}"']*@@g';)" || exit 1;
-    if [[ -z "${V_TagProtect}" ]]; then
-         VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed to get version from file lib/SVNPlus/TagProtect; exit 1;
-    fi;
-    V_README="$(sed -n -e '1,1 {' \
-           -e '   s@.*[ '"${TAB}"']@@p' \
-           -e '   q' \
-           -e '}' README.md)" || exit 1;
-    if [[ -z "${V_README}" ]]; then
-         VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed to get version from file README.md; exit 1;
-    fi;
-    if [[ "${V_Changes}" != "${V_TagProtect}" || "${V_Changes}" != "${V_README}" ]]; then
-         VERBOSE=1; Verbose pwd=$(/bin/pwd -P);
-         Verbose "version numbers do not all match";
-         Verbose From file \"Changes\" ${V_Changes};
-         Verbose From file \"lib/SVNPLus/TagProtect\" ${V_TagProtect};
-         Verbose From file \"README.md\" ${V_README};
-         exit 1;
-    fi;
-    Verbose version is ${V_Changes};
-    read -p "${NAME}: version ${V_Changes}, edit? (y/N) " ans ;
-    if [[ "${ans:-not set}" = "not set" ]]; then ans=n; fi;
-    case ${ans} in # ((
-        n*|N*) looping=0 ;;
-        q*|Q*) echo ${NAME}: exiting 1>&2; exit 0;;
-         *   ) vi Changes lib/SVNPlus/TagProtect.pm README.md;;
-    esac;
-done
-
-Verbose perl Makefile.PL ; perl Makefile.PL  || {
-     VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed command perl Makefile.PL; exit 1;
-}
-Verbose make             ; make              || {
-     VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed command make            ; exit 1;
-}
-Verbose make test        ; make test         || {
-     VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed command make test       ; exit 1;
-}
-Verbose sudo make install; sudo make install || {
-     VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed command sudo make install; exit 1;
+(
+   cd "${KILLDIR}" || exit 1;
+   sudo /bin/rm -rf svnplus*;
+) ||  {
+   echo "${NAME}: failed to remove previous install at: ${KILLDIR}" 1>&2;
+   Exit 1;
 }
 
-if (( CLEAN )); then
-    Verbose /bin/rm -rf  MYMETA.json MYMETA.yml Makefile blib/ pm_to_blib
-            /bin/rm -rf  MYMETA.json MYMETA.yml Makefile blib/ pm_to_blib
+estat=0;
+(
+/bin/pwd -P
+echo sudo python setup.py install --record ${LISTFILE}
+) 1>&2;
+     sudo python setup.py install --record ${LISTFILE} > /dev/null 2>${T0} || estat=1;
+WC=$(wc -l < ${T0});
+if (( WC > 1 )); then
+# if [[ -s ${T0} ]]; then
+   /bin/cat ${T0} 1>&2;
+   Exit 1;
 fi;
+if (( estat )); then
+    echo "${NAME}: FAILED: PWD=${PWD}" 1>&2;
+    echo "${NAME}: FAILED: sudo python setup.py install --record ${LISTFILE}" 1>&2;
+    Exit 1;
+fi;
+
+(
+/bin/pwd -P
+echo sudo python setup.py clean
+) 1>&2;
+sudo python setup.py clean || {
+    echo "${NAME}: FAILED: PWD=${PWD}" 1>&2;
+    echo sudo python setup.py clean FAILED
+    Exit 1;
+}
+echo sudo chown -R ${U}: build dist svnplus.egg-info ${LISTFILE};
+     sudo chown -R ${U}: build dist svnplus.egg-info ${LISTFILE};
+if (( CLEAN )); then
+    /bin/rm -rf build/ dist/ svnplus.egg-info/
+    if (( XLEAN )); then
+        /bin/rm -f svnplus.list.txt
+    fi;
+fi;
+Exit;

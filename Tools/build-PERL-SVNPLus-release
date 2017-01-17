@@ -1,9 +1,10 @@
 #! /bin/bash -norc
+set -u
 NAME=${0##*/};
 DIRE=${0%/*}; if [[ -z "${DIRE}" ]]; then DIRE="."; fi;
               if [[ "${DIRE}" = "${NAME}" ]]; then DIRE="."; fi;
 DIRE="$(cd ${DIRE}; echo ${PWD})";
-TAB="   "; # must be a TAB not a run of spaces
+TAB="	"; # must be a TAB not a run of spaces
 unset CDPATH; # because when bash (I love it!) is involved, CDPATH can hose up a subshell/make, etc.
 unset BASH_ENV;
 unset ENV;       # unset the ENV environmental variable so any
@@ -19,18 +20,44 @@ case ${ECHO:-null} in
      [Oo][Nn]         ) set -x ;;
 esac
 
-# various h2xs command tried
-#h2xs -AX -b 5.0.0                         SVNPlus::TagProtect
-#h2xs -AX -b 5.16.3                        SVNPlus::TagProtect
-#h2xs -AX -b 5.6.0                         SVNPlus::TagProtect
-#h2xs -AX -b 5.6.0 -v 3.03 --skip-exporter SVNPlus::TagProtect
-#h2xs -AX -b 5.6.0 -v 3.03                 SVNPlus::TagProtect
-#h2xs -AX                                  SVNPlus::TagProtect
-#h2xs -AX -b 5.16.0 -v 3.04 --skip-exporter SVNPlus::TagProtect
-# for compatiblity with 32 bit Centos on "gus" machine
-# h2xs -AX -b 5.10.0 -v 3.07 --skip-exporter SVNPlus::TagProtect  THIS ONE WORKED BEST
-# figured lowest required
-# COMMAND='h2xs -AX -b 5.8.4 -v 3.08 --skip-exporter SVNPlus::TagProtect'
+# create a suite of temp files and then functions to clean them up
+TDIR=${TMPDIR:-/tmp}; # why examine TMPDIR? see tmpnam(3), but DO NOT export TDIR
+T0=${TDIR}/${NAME}-$$-0;
+T1=${TDIR}/${NAME}-$$-1;
+T2=${TDIR}/${NAME}-$$-2;
+T3=${TDIR}/${NAME}-$$-3;
+T4=${TDIR}/${NAME}-$$-4;
+T5=${TDIR}/${NAME}-$$-5;
+T6=${TDIR}/${NAME}-$$-6;
+T7=${TDIR}/${NAME}-$$-7;
+T8=${TDIR}/${NAME}-$$-8;
+T9=${TDIR}/${NAME}-$$-9;
+
+# create helper functions for the "trap" command
+function RmTmps { # usage: RmTmps - will clear all the tmp files
+    /bin/rm -f ${T0} ${T1} ${T2} ${T3} ${T4} ${T5} ${T6} ${T7} ${T8} ${T9}
+}
+
+# this function will clean up temp files then exit
+function Exit { # usage: Exit N (N defaults to zero (0))
+    __evalue=${?}; # grab the most recent exit status
+    RmTmps;
+    if   (( ${#} ==  0  )); then
+            exit ${__evalue};
+    else
+            exit ${1};
+    fi
+}
+
+trap "Exit 2" 1 2 15; # exit if hit with HUP, INT or TERM signals, you can extend this list
+if (( ${#} == 0)); then set -- --help; fi;
+
+let DEF_VERBOSE=1 || true; let VERBOSE=1 || true;
+let DEF_CLEAN=1   || true; let CLEAN=1 || true;
+let DEF_XLEAN=1   || true; let XLEAN=1 || true;
+    DEF_VERSION="";            VERSION='not.defined.yet'
+    DEF_TARDIR="${DIRE}/../PERL-Object"
+    DEF_TARDIR="$(cd ${DEF_TARDIR} 2>/dev/null;  echo ${PWD})";
 
 LIST='
 Changes
@@ -41,12 +68,14 @@ lib/SVNPlus/TagProtect.pm
 t/SVNPlus-TagProtect.t
 '
 
-
-
-let DEF_VERBOSE=1                       || true; let VERBOSE=-1 || true;
-    DEF_TARDIR="${DIRE}/../PERL-Object"
-    DEF_TARDIR="$(cd ${DEF_TARDIR} 2>/dev/null;  echo ${PWD})";
-    VERSION='not.defined.yet'
+U="${USER:-${USERNAME:-not set}}"
+if [[ ${OSTYPE} =~ darwin* ]]; then
+    GOTO="/Users/${U}/Desktop/Projects/hooks/Python";
+    KILLDIR="/Library/Python/2.7/site-packages";
+else
+    GOTO="/home/${U}/Desktop/Projects/svnPlus/Python";
+    KILLDIR="/usr/lib/python2.7/site-packages";
+fi;
 
 USAGE="
 usage: ${NAME} version
@@ -75,35 +104,79 @@ usage: ${NAME} version
     The tarball ends up in the directory you are workging from.
 ";
 
-if (( ${#} == 0)); then set -- --help; fi;
+while (( ${#} > 0 )); do
+    case "${1}" in # ((((((((((((
+        --help      | -h    ) echo "${USAGE}"; exit 0;;
+        --run       | -r | -) : ;; # ignore it
+        --clean     | -c    ) let CLEAN=1 || true;;
+        --noclean   | -C    ) let CLEAN=0 || true;;
+        --no-clean          ) let CLEAN=0 || true;;
+        --extra*    | -e    ) let XLEAN=1 || true;;
+        --x*        | -x    ) let XLEAN=1 || true;;
+        --noextra*  | -E    ) let XLEAN=0 || true;;
+        --no-extra*         ) let XLEAN=0 || true;;
 
-# ENTER: COMMAND LINE OPTIONS PARSING
-while [ ${#} -gt 0 ]; do
+        --verbose   | -v    ) if (( VERBOSE <= 0 )); then let VERBOSE=1 || true; else let VERBOSE++ || true; fi;;
+        --verbose=0         ) let VERBOSE=0 || true;;
+        --verbose=[1-9]*    ) let VERBOSE=${1#--verbose=} || exit 1;;
+        --v0                ) let VERBOSE=0 || true;;
+        --v[1-9]*           ) let VERBOSE=${1#-v} || exit 1;;
+        --noverbose | -V    ) let VERBOSE=0 || true;;
 
-    case ${1} in
-
-        --help | -h)     echo "${USAGE}"; exit 0;;
-        --run  | -r | -) : ;; # ignore it
-
-        -*) (
-               echo "";
-               echo "${NAME}: unknown argument: \"${1}\", aborting!";
-               echo "";
-           ) 1>&2;
-            exit 1;;
-
-         *) VERSION="${@}"; set -- junk2shift;;
+         *) echo "${NAME}: arg \"${1}\" unrecognized, aborting!" 1>&2; Exit 1;;
     esac;
+    shift; # off the one just done
+done
 
-    shift; # remove the positional parameter that was just processed
-done;
-# LEAVE: COMMAND LINE OPTIONS PARSING
 
 if (( VERBOSE    < 0 )); then let VERBOSE=${DEF_VERBOSE} || true; fi;
 if [[ "${TARDIR:-not set}" = "not set" ]]; then TARDIR="${DEF_TARDIR}"; fi;
+
+cd "${DIRE}" || exit 1;
+cd ../PERL-Object || exit 1;
+
+looping=1;
+
+while (( looping > 0 )); do
+    V_Changes="$(sed -n -e '/^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[ '"${TAB}"']/{' \
+           -e '   s@[ '"${TAB}"'].*@@p' \
+           -e '   q' \
+           -e '}' Changes)" || exit 1;
+    if [[ -z "${V_Changes}" ]]; then
+         VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed to get version from file Changes; exit 1;
+    fi;
+    V_TagProtect="$(egrep 'our[ '"${TAB}"']*\$VERSION' lib/SVNPlus/TagProtect.pm | sed -e 's@.*=@@' -e 's@"@@g' -e "s@'@@g" -e 's@;@@g' -e 's@[ '"${TAB}"']*@@g';)" || exit 1;
+    if [[ -z "${V_TagProtect}" ]]; then
+         VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed to get version from file lib/SVNPlus/TagProtect; exit 1;
+    fi;
+    V_README="$(sed -n -e '1,1 {' \
+           -e '   s@.*[ '"${TAB}"']@@p' \
+           -e '   q' \
+           -e '}' README.md)" || exit 1;
+    if [[ -z "${V_README}" ]]; then
+         VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed to get version from file README.md; exit 1;
+    fi;
+    if [[ "${V_Changes}" != "${V_TagProtect}" || "${V_Changes}" != "${V_README}" ]]; then
+         VERBOSE=1; Verbose pwd=$(/bin/pwd -P);
+         Verbose "version numbers do not all match";
+         Verbose From file \"Changes\" ${V_Changes};
+         Verbose From file \"lib/SVNPLus/TagProtect\" ${V_TagProtect};
+         Verbose From file \"README.md\" ${V_README};
+         exit 1;
+    fi;
+    Verbose version is ${V_Changes};
+    read -p "${NAME}: version ${V_Changes}, edit? (y/N) " ans ;
+    if [[ "${ans:-not set}" = "not set" ]]; then ans=n; fi;
+    case ${ans} in # ((
+        n*|N*) looping=0 ;;
+        q*|Q*) echo ${NAME}: exiting 1>&2; exit 0;;
+         *   ) vi Changes lib/SVNPlus/TagProtect.pm README.md;;
+    esac;
+done
+VERSION="${V_Changes}";
 if [[ "${VERSION:-not set}" = "not set" ]]; then
     (
-       echo "${NAME}: no version supplied";
+       echo "${NAME}: no version found";
        echo "${NAME}: ABORTING!";
     )  1>&2;
     exit 1;
@@ -112,12 +185,7 @@ fi;
 (
     set -e;
     cd "${TARDIR}" || exit 1;
-    if (( VERBOSE )); then
-        (
-            echo ${NAME}: working from ${PWD};
-        ) 1>&2;
-    fi;
-
+    if (( VERBOSE > 0 )); then echo ${NAME}: working from ${PWD} 1>&2; fi;
     e=0;
     for file in ${LIST}; do
        if [[ -f "${file}" ]]; then
