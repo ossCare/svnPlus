@@ -1,0 +1,114 @@
+#! /bin/bash -norc
+set -u
+NAME=${0##*/};
+DIRE=${0%/*}; if [[ -z "${DIRE}" ]]; then DIRE="."; fi;
+              if [[ "${DIRE}" = "${NAME}" ]]; then DIRE="."; fi;
+DIRE="$(cd ${DIRE}; echo ${PWD})";
+TAB='	'; # must be a TAB not a run of spaces
+unset CDPATH; # because when bash (I love it!) is involved, CDPATH can hose up a subshell/make, etc.
+unset BASH_ENV;
+unset ENV;       # unset the ENV environmental variable so any
+                 # Korn shells below this line do not attempt to
+                 # source it. Ditto for BASH_ENV
+# the environment variable
+#    ECHO
+# is examined, if it is TRUE/YES/ON (case insensitve)
+# then turn on shell debugging
+case ${ECHO:-null} in
+     [Tt][Rr][Uu][Ee] ) set -x ;;
+     [Yy][Ee][Ss]     ) set -x ;;
+     [Oo][Nn]         ) set -x ;;
+esac
+
+let DEF_VERBOSE=0 || true; let VERBOSE=-1 || true;
+let DEF_CLEAN=1   || true; let CLEAN=-1   || true;
+while [ ${#} -gt 0 ]; do # ((((((((
+
+    case ${1} in
+
+        --help      | -h    ) echo "${USAGE}"; exit 0;;
+        --run       | -r | -) : ;; # ignore it
+        --verbose   | -v    ) if (( VERBOSE <= 0 )); then let VERBOSE=1 || true; else let VERBOSE++ || true; fi;;
+        --noverbose | -V    ) let VERBOSE=0 || true;;
+        --clean     | -c    ) let CLEAN=1 || true;;
+        --noclean   | -C    ) let CLEAN=0 || true;;
+        --no-clean          ) let CLEAN=0 || true;;
+
+         *) (
+               echo "";
+               echo "${NAME}: unknown argument: \"${1}\", aborting!";
+               echo "";
+           ) 1>&2;
+            exit 1;;
+
+    esac;
+    shift; # remove the positional parameter that was just processed
+done;
+
+if (( VERBOSE    < 0 )); then let VERBOSE=${DEF_VERBOSE} || true; fi;
+if (( CLEAN      < 0 )); then let CLEAN=${DEF_CLEAN}     || true; fi;
+
+function Verbose {
+    if (( VERBOSE )); then echo ${NAME}: ${@} 1>&2; fi;
+}
+
+
+cd "${DIRE}" || exit 1;
+cd ../PERL-Object || exit 1;
+
+looping=1;
+
+while (( looping > 0 )); do
+    V_Changes="$(sed -n -e '/^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[ '"${TAB}"']/{' \
+           -e '   s@[ '"${TAB}"'].*@@p' \
+           -e '   q' \
+           -e '}' Changes)" || exit 1;
+    if [[ -z "${V_Changes}" ]]; then
+         VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed to get version from file Changes; exit 1;
+    fi;
+    V_TagProtect="$(egrep 'our[ '"${TAB}"']*\$VERSION' lib/SVNPlus/TagProtect.pm | sed -e 's@.*=@@' -e 's@"@@g' -e "s@'@@g" -e 's@;@@g' -e 's@[ '"${TAB}"']*@@g';)" || exit 1;
+    if [[ -z "${V_TagProtect}" ]]; then
+         VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed to get version from file lib/SVNPlus/TagProtect; exit 1;
+    fi;
+    V_README="$(sed -n -e '1,1 {' \
+           -e '   s@.*[ '"${TAB}"']@@p' \
+           -e '   q' \
+           -e '}' README.md)" || exit 1;
+    if [[ -z "${V_README}" ]]; then
+         VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed to get version from file README.md; exit 1;
+    fi;
+    if [[ "${V_Changes}" != "${V_TagProtect}" || "${V_Changes}" != "${V_README}" ]]; then
+         VERBOSE=1; Verbose pwd=$(/bin/pwd -P);
+         Verbose "version numbers do not all match";
+         Verbose From file \"Changes\" ${V_Changes};
+         Verbose From file \"lib/SVNPLus/TagProtect\" ${V_TagProtect};
+         Verbose From file \"README.md\" ${V_README};
+         exit 1;
+    fi;
+    Verbose version is ${V_Changes};
+    read -p "${NAME}: version ${V_Changes}, edit? (y/N) " ans ;
+    if [[ "${ans:-not set}" = "not set" ]]; then ans=n; fi;
+    case ${ans} in # ((
+        n*|N*) looping=0 ;;
+        q*|Q*) echo ${NAME}: exiting 1>&2; exit 0;;
+         *   ) vi Changes lib/SVNPlus/TagProtect.pm README.md;;
+    esac;
+done
+
+Verbose perl Makefile.PL ; perl Makefile.PL  || {
+     VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed command perl Makefile.PL; exit 1;
+}
+Verbose make             ; make              || {
+     VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed command make            ; exit 1;
+}
+Verbose make test        ; make test         || {
+     VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed command make test       ; exit 1;
+}
+Verbose sudo make install; sudo make install || {
+     VERBOSE=1; Verbose pwd=$(/bin/pwd -P); Verbose failed command sudo make install; exit 1;
+}
+
+if (( CLEAN )); then
+    Verbose /bin/rm -rf  MYMETA.json MYMETA.yml Makefile blib/ pm_to_blib
+            /bin/rm -rf  MYMETA.json MYMETA.yml Makefile blib/ pm_to_blib
+fi;
