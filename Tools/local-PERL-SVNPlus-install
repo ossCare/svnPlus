@@ -73,7 +73,7 @@ usage: ${NAME} [options]
 ";
 
 while (( ${#} > 0 )); do
-    case "${1}" in # ((((((((((((
+    case "${1}" in # (((((((((((((((((
         --help      | -h    ) echo "${USAGE}"; exit 0;;
         --run       | -r | -) : ;; # ignore it
         --clean     | -c    ) let CLEAN=1 || true;;
@@ -83,16 +83,14 @@ while (( ${#} > 0 )); do
         --x*        | -x    ) let XLEAN=1 || true;;
         --noextra*  | -E    ) let XLEAN=0 || true;;
         --no-extra*         ) let XLEAN=0 || true;;
-
+                      -X    ) let XLEAN=1 || true;;
         --verbose   | -v    ) if (( VERBOSE <= 0 )); then let VERBOSE=1 || true; else let VERBOSE++ || true; fi;;
         --verbose=0         ) let VERBOSE=0 || true;;
         --verbose=[1-9]*    ) let VERBOSE=${1#--verbose=} || exit 1;;
         --v0                ) let VERBOSE=0 || true;;
         --v[1-9]*           ) let VERBOSE=${1#-v} || exit 1;;
         --noverbose | -V    ) let VERBOSE=0 || true;;
-
-         *) echo "${NAME}: arg \"${1}\" unrecognized, aborting!" 1>&2; Exit 1;;
-        #*) VERSION="${@}"; set -- junk2shift;;
+                           *) echo "${NAME}: arg \"${1}\" unrecognized, aborting!" 1>&2; Exit 1;;
     esac;
     shift; # off the one just done
 done
