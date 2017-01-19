@@ -55,9 +55,9 @@ function Exit { # usage: Exit N (N defaults to zero (0))
 trap "Exit 2" 1 2 15; # exit if hit with HUP, INT or TERM signals, you can extend this list
 if (( ${#} == 0)); then set -- --help; fi;
 
-let DEF_VERBOSE=1 || true; let VERBOSE=1 || true;
-let DEF_CLEAN=1   || true; let CLEAN=1 || true;
-let DEF_XLEAN=1   || true; let XLEAN=1 || true;
+let DEF_VERBOSE=1 || true; let VERBOSE=-1 || true;
+let DEF_CLEAN=1   || true; let CLEAN=-1   || true;
+let DEF_XLEAN=0   || true; let XLEAN=-1   || true;
     DEF_VERSION="";            VERSION="";
 
 U="${USER:-${USERNAME:-not set}}"
@@ -100,22 +100,35 @@ while (( ${#} > 0 )); do
     shift; # off the one just done
 done
 
+function EError { Error "${@}"; Exit 1; }
+function Error  { oV=${VERBOSE}; VERBOSE=1; Verbose ${@} VERBOSE=${oV}; }
+function Verbose {
+    if (( VERBOSE > 0 )); then
+        (
+            _n='';
+            if (( ${#} > 0 )); then
+               if [[ "${1}" = "-n" ]]; then _n=-n; fi;
+               echo ${_n} ${NAME}: "${@}";
+            else
+               echo '';
+            fi;
+        ) 1>&2;
+    fi;
+}
 if (( VERBOSE < 0 )); then VERBOSE=${DEF_VERBOSE}; fi;
 if (( CLEAN < 0 )); then CLEAN=${DEF_CLEAN}; fi;
 if (( XLEAN < 0 )); then XLEAN=${DEF_XLEAN}; fi;
 if (( XLEAN > 0 )); then CLEAN=1; fi;
 
 cd "${GOTO}" || {
-    echo "${NAME}: cd failed to ${GOTO}" 1>&2;
-    Exit 1;
+    EError "cd failed to ${GOTO}";
 }
 
 (
    cd "${KILLDIR}" || exit 1;
    sudo /bin/rm -rf svnplus*;
 ) ||  {
-   echo "${NAME}: failed to remove previous install at: ${KILLDIR}" 1>&2;
-   Exit 1;
+   EError "failed to remove previous install at: ${KILLDIR}";
 }
 
 estat=0;
@@ -131,9 +144,8 @@ if (( WC > 1 )); then
    Exit 1;
 fi;
 if (( estat )); then
-    echo "${NAME}: FAILED: PWD=${PWD}" 1>&2;
-    echo "${NAME}: FAILED: sudo python setup.py install --record ${LISTFILE}" 1>&2;
-    Exit 1;
+    Error "FAILED: PWD=${PWD}";
+    EError "FAILED: sudo python setup.py install --record ${LISTFILE}";
 fi;
 
 (
@@ -141,16 +153,17 @@ fi;
 echo sudo python setup.py clean
 ) 1>&2;
 sudo python setup.py clean || {
-    echo "${NAME}: FAILED: PWD=${PWD}" 1>&2;
-    echo sudo python setup.py clean FAILED
-    Exit 1;
+    Error "FAILED: PWD=${PWD}";
+    EError "sudo python setup.py clean FAILED";
 }
-echo sudo chown -R ${U}: build dist svnplus.egg-info ${LISTFILE};
+Verbose sudo chown -R ${U}: build dist svnplus.egg-info ${LISTFILE};
      sudo chown -R ${U}: build dist svnplus.egg-info ${LISTFILE};
 if (( CLEAN )); then
-    /bin/rm -rf build/ dist/ svnplus.egg-info/
+    Verbose /bin/rm -rf build/ dist/ svnplus.egg-info/
+         /bin/rm -rf build/ dist/ svnplus.egg-info/
     if (( XLEAN )); then
-        /bin/rm -f svnplus.list.txt
+        Verbose /bin/rm -f svnplus.list.txt
+             /bin/rm -f svnplus.list.txt
     fi;
 fi;
 Exit;
