@@ -25,7 +25,7 @@ import fnmatch
 import subprocess
 import time
 
-VERSION = '3.19.0'
+VERSION = '3.19.1'
 
 # FATAL ERROR
 exitFatalErr = 1
