@@ -70,6 +70,9 @@ else
 fi;
 
 USAGE="
+usage: ${NAME} [options]
+
+   locally installs/reinstalls svnPlus
 ";
 
 while (( ${#} > 0 )); do
