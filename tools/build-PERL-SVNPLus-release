@@ -49,6 +49,23 @@ function Exit { # usage: Exit N (N defaults to zero (0))
     fi
 }
 
+function EError { Error "${@}"; Exit 1; }
+function Error  { oV=${VERBOSE}; VERBOSE=1; Verbose ${@} VERBOSE=${oV}; }
+
+function Verbose {
+    if (( VERBOSE > 0 )); then
+        (
+            _n='';
+            if (( ${#} > 0 )); then
+               if [[ "${1}" = "-n" ]]; then _n=-n; fi;
+               echo ${_n} ${NAME}: "${@}";
+            else
+               echo '';
+            fi;
+        ) 1>&2;
+    fi;
+}
+
 trap "Exit 2" 1 2 15; # exit if hit with HUP, INT or TERM signals, you can extend this list
 if (( ${#} == 0)); then set -- --help; fi;
 
@@ -56,8 +73,15 @@ let DEF_VERBOSE=1 || true; let VERBOSE=1 || true;
 let DEF_CLEAN=1   || true; let CLEAN=1 || true;
 let DEF_XLEAN=1   || true; let XLEAN=1 || true;
     DEF_VERSION="";            VERSION='not.defined.yet'
-    DEF_TARDIR="${DIRE}/../PERL-Object"
-    DEF_TARDIR="$(cd ${DEF_TARDIR} 2>/dev/null;  echo ${PWD})";
+
+if [[ ${OSTYPE} =~ darwin* ]]; then
+    KILLDIR="/Library/Python/2.7/site-packages";
+else
+    KILLDIR="/usr/lib/python2.7/site-packages";
+fi;
+GOTO="${DIRE}/../tagProtect";
+DEF_TARDIR="${GOTO}/PERL-Object"
+DEF_TARDIR="$(cd ${DEF_TARDIR} 2>/dev/null;  echo ${PWD})";
 
 LIST='
 Changes
@@ -68,14 +92,6 @@ lib/SVNPlus/TagProtect.pm
 t/SVNPlus-TagProtect.t
 '
 
-U="${USER:-${USERNAME:-not set}}"
-if [[ ${OSTYPE} =~ darwin* ]]; then
-    GOTO="/Users/${U}/Desktop/Projects/hooks/Python";
-    KILLDIR="/Library/Python/2.7/site-packages";
-else
-    GOTO="/home/${U}/Desktop/Projects/svnPlus/Python";
-    KILLDIR="/usr/lib/python2.7/site-packages";
-fi;
 
 USAGE="
 usage: ${NAME} version
@@ -127,12 +143,12 @@ while (( ${#} > 0 )); do
     shift; # off the one just done
 done
 
-
 if (( VERBOSE    < 0 )); then let VERBOSE=${DEF_VERBOSE} || true; fi;
 if [[ "${TARDIR:-not set}" = "not set" ]]; then TARDIR="${DEF_TARDIR}"; fi;
-
-cd "${DIRE}" || exit 1;
-cd ../PERL-Object || exit 1;
+cd "${TARDIR}" || {
+     Error ${NAME}: current directory is ${PWD};
+    EError ${NAME}: failed to cd to ${TARDIR};
+}
 
 looping=1;
 
@@ -172,6 +188,7 @@ while (( looping > 0 )); do
          *   ) vi Changes lib/SVNPlus/TagProtect.pm README.md;;
     esac;
 done
+
 VERSION="${V_Changes}";
 if [[ "${VERSION:-not set}" = "not set" ]]; then
     (
