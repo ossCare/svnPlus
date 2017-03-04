@@ -1,4 +1,7 @@
 # svnPlus
+The directory structure was (again) changed to facilitate user being friendly.
+Should now be more mnemonic.
+
 This project is being worked on in stages, which are
 * Tag Protect - done (LDAP user/group support to be added) _Python development will continue_
 * Web Config - _coding in progress_
@@ -20,7 +23,7 @@ This insures, for example, that the source code for a deployment, say release 1.
 SVNPlus-TagProtect version 3.18.1
 =================================
 The PERL code has been updated with minor bug fixes found while porting the code to Python.
-This is the last updates to the PERL code and all futher updates will be with in the Python line.
+This is the last updates to the PERL code and all further updates will be with in the Python line.
 
 
 
